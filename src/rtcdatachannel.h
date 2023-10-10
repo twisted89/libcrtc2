@@ -29,57 +29,57 @@
 
 #include "crtc.h"
 
-#include "webrtc/api/datachannelinterface.h"
+#include <api/data_channel_interface.h>
 
 namespace crtc {
-  class RTCDataChannelInternal : public RTCDataChannel, public webrtc::DataChannelObserver {
-    public:
-      explicit RTCDataChannelInternal(const rtc::scoped_refptr<webrtc::DataChannelInterface> &channel);
+	class RTCDataChannelInternal : public RTCDataChannel, public webrtc::DataChannelObserver {
+	public:
+		explicit RTCDataChannelInternal(const rtc::scoped_refptr<webrtc::DataChannelInterface>& channel);
 
-      int Id() override;
-      std::string Label() override;
-      uint64_t BufferedAmount() override;
-      uint64_t BufferedAmountLowThreshold() override;
-      void SetBufferedAmountLowThreshold(uint64_t threshold = 0) override;
-      uint16_t MaxPacketLifeTime() override;
-      uint16_t MaxRetransmits() override;
-      bool Negotiated() override;
-      bool Ordered() override;
-      std::string Protocol() override;
-      RTCDataChannel::State ReadyState() override;
-      void Close() override;
-      void Send(const Let<ArrayBuffer> &data, bool binary = true) override;
+		int Id() override;
+		std::string Label() override;
+		uint64_t BufferedAmount() override;
+		uint64_t BufferedAmountLowThreshold() override;
+		void SetBufferedAmountLowThreshold(uint64_t threshold = 0) override;
+		uint16_t MaxPacketLifeTime() override;
+		uint16_t MaxRetransmits() override;
+		bool Negotiated() override;
+		bool Ordered() override;
+		std::string Protocol() override;
+		RTCDataChannel::State ReadyState() override;
+		void Close() override;
+		void Send(const Let<ArrayBuffer>& data, bool binary = true) override;
 
-    protected:
-      ~RTCDataChannelInternal() override;
+	protected:
+		~RTCDataChannelInternal() override;
 
-      void OnStateChange() override;
-      void OnMessage(const webrtc::DataBuffer& buffer) override;
-      void OnBufferedAmountChange(uint64_t previous_amount) override;
+		void OnStateChange() override;
+		void OnMessage(const webrtc::DataBuffer& buffer) override;
+		void OnBufferedAmountChange(uint64_t previous_amount) override;
 
-      uint64_t _threshold;
-      Let<Event> _event;
-      rtc::scoped_refptr<webrtc::DataChannelInterface> _channel;
-  };
+		uint64_t _threshold;
+		Let<Event> _event;
+		rtc::scoped_refptr<webrtc::DataChannelInterface> _channel;
+	};
 
-  class WrapRtcBuffer : public ArrayBuffer {
-      friend class Let<WrapRtcBuffer>;
+	class WrapRtcBuffer : public ArrayBuffer {
+		friend class Let<WrapRtcBuffer>;
 
-    public:
-      size_t ByteLength() const override;
+	public:
+		size_t ByteLength() const override;
 
-      Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
+		Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
 
-      uint8_t *Data() override;
-      const uint8_t *Data() const override;
+		uint8_t* Data() override;
+		const uint8_t* Data() const override;
 
-      std::string ToString() const override;
-    protected:
-      explicit WrapRtcBuffer(const rtc::CopyOnWriteBuffer &buffer);
-      ~WrapRtcBuffer() override;
+		std::string ToString() const override;
+	protected:
+		explicit WrapRtcBuffer(const rtc::CopyOnWriteBuffer& buffer);
+		~WrapRtcBuffer() override;
 
-      rtc::CopyOnWriteBuffer _data;
-  };
-};
+		rtc::CopyOnWriteBuffer _data;
+	};
+}
 
 #endif

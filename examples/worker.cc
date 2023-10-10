@@ -14,7 +14,7 @@ int main() {
   printf("Creating Workers...\n");
 
   for (int index = 0; index < requested; index++) {
-    Let<Worker> worker =  Worker::New([index]() {
+      std::shared_ptr<Worker> worker =  std::make_shared<Worker>([index]() {
       SetTimeout([=]() {
         if (!Worker::This().IsEmpty()) {
           printf("I'M WORKER[%d]!\n", index);

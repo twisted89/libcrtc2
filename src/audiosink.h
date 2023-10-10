@@ -33,38 +33,37 @@
 #include "audiobuffer.h"
 
 namespace crtc {
-  class AudioSinkInternal : public AudioSink, public MediaStreamTrackInternal, public webrtc::AudioTrackSinkInterface {
-      friend class Let<AudioSinkInternal>;
-      friend class AudioSink;
+    class AudioSinkInternal : public AudioSink, public MediaStreamTrackInternal, public webrtc::AudioTrackSinkInterface {
+        friend class Let<AudioSinkInternal>;
+        friend class AudioSink;
 
     public:
-      bool IsRunning() const override;
-      void Stop() override;
+        bool IsRunning() const override;
+        void Stop() override;
 
-      bool Enabled() const override;
-      bool Muted() const override;
-      bool Remote() const override;
-      std::string Id() const override;
-      MediaStreamTrack::Type Kind() const override;
-      MediaStreamTrack::State ReadyState() const override;
-      Let<MediaStreamTrack> Clone() override;
+        bool Enabled() const override;
+        bool Muted() const override;
+        bool Remote() const override;
+        std::string Id() const override;
+        MediaStreamTrack::Type Kind() const override;
+        MediaStreamTrack::State ReadyState() const override;
+        Let<MediaStreamTrack> Clone() override;
 
-    protected:      
-      explicit AudioSinkInternal(const Let<MediaStreamTrackInternal> &track, 
-                                 const rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track);
+    protected:
+        explicit AudioSinkInternal(const Let<MediaStreamTrackInternal>& track);
 
-      ~AudioSinkInternal() override;
+        ~AudioSinkInternal() override;
 
-      void OnEnded() override;
-      void OnData(const void* audio_data,
-                  int bits_per_sample,
-                  int sample_rate,
-                  size_t number_of_channels,
-                  size_t number_of_frames) override;
+        void OnEnded() override;
+        void OnData(const void* audio_data,
+            int bits_per_sample,
+            int sample_rate,
+            size_t number_of_channels,
+            size_t number_of_frames) override;
 
-      Let<Event> _event;
-      rtc::scoped_refptr<webrtc::AudioTrackInterface> _audio_track;
-  };  
-};
+        Let<Event> _event;
+        webrtc::AudioTrackInterface* _audio_track;
+    };
+}
 
 #endif

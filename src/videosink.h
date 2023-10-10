@@ -31,38 +31,34 @@
 #include "mediastream.h"
 #include "mediastreamtrack.h"
 
-#include "webrtc/media/base/videosinkinterface.h"
-#include "webrtc/video_frame.h"
+namespace crtc {
+	class VideoSinkInternal : public VideoSink, public MediaStreamTrackInternal, public rtc::VideoSinkInterface<webrtc::VideoFrame> {
+		friend class Let<VideoSinkInternal>;
+		friend class VideoSink;
 
-namespace crtc {  
-  class VideoSinkInternal : public VideoSink, public MediaStreamTrackInternal, public rtc::VideoSinkInterface<webrtc::VideoFrame> {
-      friend class Let<VideoSinkInternal>;
-      friend class VideoSink;
+	public:
+		bool IsRunning() const override;
+		void Stop() override;
 
-    public:
-      bool IsRunning() const override;
-      void Stop() override;
+		bool Enabled() const override;
+		bool Muted() const override;
+		bool Remote() const override;
+		std::string Id() const override;
+		MediaStreamTrack::Type Kind() const override;
+		MediaStreamTrack::State ReadyState() const override;
+		Let<MediaStreamTrack> Clone() override;
 
-      bool Enabled() const override;
-      bool Muted() const override;
-      bool Remote() const override;
-      std::string Id() const override;
-      MediaStreamTrack::Type Kind() const override;
-      MediaStreamTrack::State ReadyState() const override;
-      Let<MediaStreamTrack> Clone() override;
- 
-    protected:      
-      explicit VideoSinkInternal(const Let<MediaStreamTrackInternal> &track, 
-                                 const rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track);
+	protected:
+		explicit VideoSinkInternal(const Let<MediaStreamTrackInternal>& track);
 
-      ~VideoSinkInternal() override;
+		~VideoSinkInternal() override;
 
-      void OnEnded() override;
-      void OnFrame(const webrtc::VideoFrame& frame) override;
+		void OnEnded() override;
+		void OnFrame(const webrtc::VideoFrame& frame) override;
 
-      Let<Event> _event;
-      rtc::scoped_refptr<webrtc::VideoTrackInterface> _video_track;
-  };
-};
+		Let<Event> _event;
+		webrtc::VideoTrackInterface* _video_track;
+	};
+}
 
 #endif

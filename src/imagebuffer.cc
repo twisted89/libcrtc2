@@ -25,127 +25,131 @@
 
 #include "crtc.h"
 #include "imagebuffer.h"
+#include <api/make_ref_counted.h>
+#include <api/video/i420_buffer.h>
+#include <third_party/libyuv/include/libyuv/convert.h>
+#include <third_party/libyuv/include/libyuv/scale.h>
 
 using namespace crtc;
 
-ImageBufferInternal::ImageBufferInternal(const Let<ArrayBuffer> &buffer, int width, int height) : 
-  ArrayBufferInternal(buffer),
-  _width(width), 
-  _height(height)
+ImageBufferInternal::ImageBufferInternal(const Let<ArrayBuffer>& buffer, int width, int height) :
+	ArrayBufferInternal(buffer),
+	_width(width),
+	_height(height)
 {
-  _y = ArrayBufferInternal::Data();
-  _u = ArrayBufferInternal::Data() + _width * _height;
-  _v = ArrayBufferInternal::Data() + _width * _height + ((_width + 1) >> 1) * ((_height + 1) >> 1);
+	_y = ArrayBufferInternal::Data();
+	_u = ArrayBufferInternal::Data() + _width * _height;
+	_v = ArrayBufferInternal::Data() + _width * _height + ((_width + 1) >> 1) * ((_height + 1) >> 1);
 }
 
 ImageBufferInternal::ImageBufferInternal(int width, int height) :
-  ArrayBufferInternal(nullptr, ImageBuffer::ByteLength(width, height)),
-  _width(width), 
-  _height(height) 
+	ArrayBufferInternal(nullptr, ImageBuffer::ByteLength(width, height)),
+	_width(width),
+	_height(height)
 {
-  _y = ArrayBufferInternal::Data();
-  _u = ArrayBufferInternal::Data() + _width * _height;
-  _v = ArrayBufferInternal::Data() + _width * _height + ((_width + 1) >> 1) * ((_height + 1) >> 1);
+	_y = ArrayBufferInternal::Data();
+	_u = ArrayBufferInternal::Data() + _width * _height;
+	_v = ArrayBufferInternal::Data() + _width * _height + ((_width + 1) >> 1) * ((_height + 1) >> 1);
 }
 
 ImageBufferInternal::~ImageBufferInternal() {
-  
+
 }
 
-Let<ImageBuffer> ImageBufferInternal::New(const Let<ArrayBuffer> &buffer, int width, int height) {
-  return Let<ImageBufferInternal>::New(buffer, width, height);
+Let<ImageBuffer> ImageBufferInternal::New(const Let<ArrayBuffer>& buffer, int width, int height) {
+	return Let<ImageBufferInternal>::New(buffer, width, height);
 }
 
 Let<ImageBuffer> ImageBufferInternal::New(int width, int height) {
-  return Let<ImageBufferInternal>::New(width, height);
+	return Let<ImageBufferInternal>::New(width, height);
 }
 
 int ImageBufferInternal::Width() const {
-  return _width;
+	return _width;
 }
 
 int ImageBufferInternal::Height() const {
-  return _height;
+	return _height;
 }
 
 const uint8_t* ImageBufferInternal::DataY() const {
-  return _y;
+	return _y;
 }
 
 const uint8_t* ImageBufferInternal::DataU() const {
-  return _u;
+	return _u;
 }
 
 const uint8_t* ImageBufferInternal::DataV() const {
-  return _v;
+	return _v;
 }
 
 int ImageBufferInternal::StrideY() const {
-  return _width;
+	return _width;
 }
 
 int ImageBufferInternal::StrideU() const {
-  return (_width + 1) >> 1;
+	return (_width + 1) >> 1;
 }
 
 int ImageBufferInternal::StrideV() const {
-  return (_width + 1) >> 1;
+	return (_width + 1) >> 1;
 }
 
 size_t ImageBufferInternal::ByteLength() const {
-  return ArrayBufferInternal::ByteLength();
+	return ArrayBufferInternal::ByteLength();
 }
 
 Let<ArrayBuffer> ImageBufferInternal::Slice(size_t begin, size_t end) const {
-  return ArrayBufferInternal::Slice(begin, end);
+	return ArrayBufferInternal::Slice(begin, end);
 }
 
-uint8_t *ImageBufferInternal::Data() {
-  return ArrayBufferInternal::Data();
+uint8_t* ImageBufferInternal::Data() {
+	return ArrayBufferInternal::Data();
 }
 
-const uint8_t *ImageBufferInternal::Data() const {
-  return ArrayBufferInternal::Data();
+const uint8_t* ImageBufferInternal::Data() const {
+	return ArrayBufferInternal::Data();
 }
 
 std::string ImageBufferInternal::ToString() const {
-  return ArrayBufferInternal::ToString();
+	return ArrayBufferInternal::ToString();
 }
 
 Let<ImageBuffer> ImageBuffer::New(int width, int height) {
-  return ImageBufferInternal::New(width, height);
+	return ImageBufferInternal::New(width, height);
 }
 
-Let<ImageBuffer> ImageBuffer::New(const Let<ArrayBuffer> &buffer, int width, int height) {
-  if (ImageBuffer::ByteLength(width, height) == buffer->ByteLength()) {
-    return ImageBufferInternal::New(buffer, width, height);
-  }
-  
-  return Let<ImageBuffer>::Empty();
+Let<ImageBuffer> ImageBuffer::New(const Let<ArrayBuffer>& buffer, int width, int height) {
+	if (ImageBuffer::ByteLength(width, height) == buffer->ByteLength()) {
+		return ImageBufferInternal::New(buffer, width, height);
+	}
+
+	return Let<ImageBuffer>::Empty();
 }
 
 size_t ImageBuffer::ByteLength(int height, int stride_y, int stride_u, int stride_v) {
-  return static_cast<size_t>(stride_y * height + (stride_u + stride_v) * ((height + 1) >> 1));
+	return static_cast<size_t>(stride_y * height + (stride_u + stride_v) * ((height + 1) >> 1));
 }
 
 size_t ImageBuffer::ByteLength(int width, int height) {
-  if (width > 0 && height > 0) {
-    return ByteLength(height, width, (width + 1) >> 1, (width + 1) >> 1);
-  }
+	if (width > 0 && height > 0) {
+		return ByteLength(height, width, (width + 1) >> 1, (width + 1) >> 1);
+	}
 
-  return 0; 
+	return 0;
 }
 
-rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapImageBuffer::New(const Let<ImageBuffer> &source) {
-  if (!source.IsEmpty()) {
-    return new rtc::RefCountedObject<WrapImageBuffer>(source);
-  }
+rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapImageBuffer::New(const Let<ImageBuffer>& source) {
+	if (!source.IsEmpty()) {
+		return rtc::make_ref_counted<WrapImageBuffer>(source);
+	}
 
-  return nullptr;
+	return nullptr;
 }
 
-WrapImageBuffer::WrapImageBuffer(const Let<ImageBuffer> &source) :
-  _source(source)
+WrapImageBuffer::WrapImageBuffer(const Let<ImageBuffer>& source) :
+	_source(source)
 { }
 
 WrapImageBuffer::~WrapImageBuffer() {
@@ -153,55 +157,45 @@ WrapImageBuffer::~WrapImageBuffer() {
 }
 
 int WrapImageBuffer::width() const {
-  return _source->Width();
+	return _source->Width();
 }
 
 int WrapImageBuffer::height() const {
-  return _source->Height();
+	return _source->Height();
 }
 
-const uint8_t* WrapImageBuffer::DataY() const {
-  return _source->DataY();
+webrtc::VideoFrameBuffer::Type WrapImageBuffer::type() const
+{
+	return webrtc::VideoFrameBuffer::Type::kI420;
 }
 
-const uint8_t* WrapImageBuffer::DataU() const {
-  return _source->DataU();
+const webrtc::I420BufferInterface* WrapImageBuffer::GetI420() const
+{
+	return nullptr;
 }
 
-const uint8_t* WrapImageBuffer::DataV() const {
-  return _source->DataV();
+rtc::scoped_refptr<webrtc::I420BufferInterface> WrapImageBuffer::ToI420() {
+	rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer = webrtc::I420Buffer::Create(width(), height());
+	int res = libyuv::I420ToI420(
+		_source->DataY(), _source->StrideY(), _source->DataU(), _source->StrideU(), _source->DataV(), _source->StrideV(),
+		i420_buffer->MutableDataY(), i420_buffer->StrideY(),
+		i420_buffer->MutableDataU(), i420_buffer->StrideU(),
+		i420_buffer->MutableDataV(), i420_buffer->StrideV(), width(), height());
+	RTC_DCHECK_EQ(res, 0);
+
+	return i420_buffer;
 }
 
-int WrapImageBuffer::StrideY() const {
-  return _source->StrideY();
+Let<ImageBuffer> WrapVideoFrameBuffer::New(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& vfb) {
+	if (vfb.get()) {
+		return Let<WrapVideoFrameBuffer>::New(vfb);
+	}
+
+	return Let<ImageBuffer>::Empty();
 }
 
-int WrapImageBuffer::StrideU() const {
-  return _source->StrideU();
-}
-
-int WrapImageBuffer::StrideV() const {
-  return _source->StrideV();
-}
-
-void* WrapImageBuffer::native_handle() const {
-  return nullptr;
-}
-
-rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapImageBuffer::NativeToI420Buffer() {
-  return nullptr;
-}
-
-Let<ImageBuffer> WrapVideoFrameBuffer::New(const rtc::scoped_refptr<webrtc::VideoFrameBuffer> &vfb) {
-  if (vfb.get()) {
-    return Let<WrapVideoFrameBuffer>::New(vfb);
-  }
-
-  return Let<ImageBuffer>::Empty();
-}
-
-WrapVideoFrameBuffer::WrapVideoFrameBuffer(const rtc::scoped_refptr<webrtc::VideoFrameBuffer> &vfb) :
-  _vfb(vfb)
+WrapVideoFrameBuffer::WrapVideoFrameBuffer(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& vfb) :
+	_vfb(vfb)
 { }
 
 WrapVideoFrameBuffer::~WrapVideoFrameBuffer() {
@@ -209,82 +203,68 @@ WrapVideoFrameBuffer::~WrapVideoFrameBuffer() {
 }
 
 int WrapVideoFrameBuffer::Width() const {
-  return _vfb->width();
+	return _vfb->width();
 }
 
 int WrapVideoFrameBuffer::Height() const {
-  return _vfb->height();
+	return _vfb->height();
 }
 
-const uint8_t* WrapVideoFrameBuffer::DataY() const {
-  return _vfb->DataY();
+const webrtc::I420BufferInterface* WrapVideoFrameBuffer::GetI420() const
+{
+	return _vfb->GetI420();
 }
 
-const uint8_t* WrapVideoFrameBuffer::DataU() const {
-  return _vfb->DataU();
-}
-
-const uint8_t* WrapVideoFrameBuffer::DataV() const {
-  return _vfb->DataV();
-}
-
-int WrapVideoFrameBuffer::StrideY() const {
-  return _vfb->StrideY();
-}
-
-int WrapVideoFrameBuffer::StrideU() const {
-  return _vfb->StrideU();
-}
-
-int WrapVideoFrameBuffer::StrideV() const {
-  return _vfb->StrideV();
+rtc::scoped_refptr<webrtc::I420BufferInterface> WrapVideoFrameBuffer::ToI420() {
+	return _vfb->ToI420();
 }
 
 size_t WrapVideoFrameBuffer::ByteLength() const {
-  return ImageBuffer::ByteLength(_vfb->height(), _vfb->StrideY(), _vfb->StrideU(), _vfb->StrideV());
+	auto i420 = _vfb->GetI420();
+	return ImageBuffer::ByteLength(_vfb->height(), i420->StrideY(), i420->StrideU(), i420->StrideV());
 }
 
 Let<ArrayBuffer> WrapVideoFrameBuffer::Slice(size_t begin, size_t end) const {
-  Let<ArrayBuffer> buffer = ArrayBuffer::New(Data(), ByteLength());
+	Let<ArrayBuffer> buffer = ArrayBuffer::New(Data(), ByteLength());
 
-  if (!buffer.IsEmpty()) {
-    return buffer->Slice(begin, end);
-  }
+	if (!buffer.IsEmpty()) {
+		return buffer->Slice(begin, end);
+	}
 
-  return Let<ArrayBuffer>::Empty();
+	return Let<ArrayBuffer>::Empty();
 }
 
-uint8_t *WrapVideoFrameBuffer::Data() {
-  return const_cast<uint8_t*>(_vfb->DataY());
+uint8_t* WrapVideoFrameBuffer::Data() {
+	return const_cast<uint8_t*>(_vfb->GetI420()->DataY());
 }
 
-const uint8_t *WrapVideoFrameBuffer::Data() const {
-  return _vfb->DataY();
+const uint8_t* WrapVideoFrameBuffer::Data() const {
+	return _vfb->GetI420()->DataY();
 }
 
 std::string WrapVideoFrameBuffer::ToString() const {
-  return std::string(std::string(reinterpret_cast<const char *>(Data()), ByteLength()));
+	return std::string(std::string(reinterpret_cast<const char*>(Data()), ByteLength()));
 }
 
-rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapBufferToVideoFrameBuffer::New(const Let<ArrayBuffer> &source, int width, int height) {
-  if (!source.IsEmpty()) {
-    return new rtc::RefCountedObject<WrapBufferToVideoFrameBuffer>(source, width, height);
-  }
+rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapBufferToVideoFrameBuffer::New(const Let<ArrayBuffer>& source, int width, int height) {
+	if (!source.IsEmpty()) {
+		return rtc::make_ref_counted<WrapBufferToVideoFrameBuffer>(source, width, height);
+	}
 
-  return nullptr;
+	return nullptr;
 }
 
-WrapBufferToVideoFrameBuffer::WrapBufferToVideoFrameBuffer(const Let<ArrayBuffer> &source, int width, int height) :
-  _source(source),
-  _width(width),
-  _height(height),
-  _y(nullptr),
-  _u(nullptr),
-  _v(nullptr)
+WrapBufferToVideoFrameBuffer::WrapBufferToVideoFrameBuffer(const Let<ArrayBuffer>& source, int width, int height) :
+	_source(source),
+	_width(width),
+	_height(height),
+	_y(nullptr),
+	_u(nullptr),
+	_v(nullptr)
 {
-  _y = source->Data();
-  _u = source->Data() + _width * _height;
-  _v = source->Data() + _width * _height + ((_width + 1) >> 1) * ((_height + 1) >> 1);
+	_y = source->Data();
+	_u = source->Data() + _width * _height;
+	_v = source->Data() + _width * _height + ((_width + 1) >> 1) * ((_height + 1) >> 1);
 }
 
 WrapBufferToVideoFrameBuffer::~WrapBufferToVideoFrameBuffer() {
@@ -292,41 +272,50 @@ WrapBufferToVideoFrameBuffer::~WrapBufferToVideoFrameBuffer() {
 }
 
 int WrapBufferToVideoFrameBuffer::width() const {
-  return _width;
+	return _width;
 }
 
 int WrapBufferToVideoFrameBuffer::height() const {
-  return _height;
+	return _height;
 }
 
 const uint8_t* WrapBufferToVideoFrameBuffer::DataY() const {
-  return _y;
+	return _y;
 }
 
 const uint8_t* WrapBufferToVideoFrameBuffer::DataU() const {
-  return _u;
+	return _u;
 }
 
 const uint8_t* WrapBufferToVideoFrameBuffer::DataV() const {
-  return _v;
+	return _v;
 }
 
 int WrapBufferToVideoFrameBuffer::StrideY() const {
-  return _width;
+	return _width;
 }
 
 int WrapBufferToVideoFrameBuffer::StrideU() const {
-  return (_width + 1) >> 1;
+	return (_width + 1) >> 1;
 }
 
 int WrapBufferToVideoFrameBuffer::StrideV() const {
-  return (_width + 1) >> 1;
+	return (_width + 1) >> 1;
 }
 
-void* WrapBufferToVideoFrameBuffer::native_handle() const {
-  return nullptr;
+const webrtc::I420BufferInterface* WrapBufferToVideoFrameBuffer::GetI420() const
+{
+	return nullptr;
 }
 
-rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapBufferToVideoFrameBuffer::NativeToI420Buffer() {
-  return nullptr;
+rtc::scoped_refptr<webrtc::I420BufferInterface> WrapBufferToVideoFrameBuffer::ToI420() {
+	rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer = webrtc::I420Buffer::Create(width(), height());
+	int res = libyuv::I420ToI420(
+		DataY(), StrideY(), DataU(), StrideU(), DataV(), StrideV(),
+		i420_buffer->MutableDataY(), i420_buffer->StrideY(),
+		i420_buffer->MutableDataU(), i420_buffer->StrideU(),
+		i420_buffer->MutableDataV(), i420_buffer->StrideV(), width(), height());
+	RTC_DCHECK_EQ(res, 0);
+
+	return i420_buffer;
 }

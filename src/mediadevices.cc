@@ -26,6 +26,14 @@
 #include "crtc.h"
 #include "mediadevices.h"
 #include <string> 
+#include <future>
+#include <api/audio_codecs/builtin_audio_decoder_factory.h>
+#include <api/audio_codecs/builtin_audio_encoder_factory.h>
+#include <api/video_codecs/builtin_video_encoder_factory.h>
+#include <api/video_codecs/builtin_video_decoder_factory.h>
+#include <api/video_codecs/video_decoder_factory_template.h>
+#include <api/video_codecs/video_decoder_factory_template_open_h264_adapter.h>
+#include "pc/test/fake_video_track_source.h"
 
 using namespace crtc;
 
@@ -36,195 +44,171 @@ rtc::scoped_refptr<webrtc::AudioDeviceModule> MediaDevicesInternal::audio_device
 std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> MediaDevicesInternal::video_device;
 
 void MediaDevicesInternal::Init() {
-  network_thread = rtc::Thread::CreateWithSocketServer();
-  network_thread->SetName("network", nullptr);
-  
-  if (!network_thread->Start()) {
-    
-  }
+	network_thread = rtc::Thread::CreateWithSocketServer();
+	network_thread->SetName("network", nullptr);
 
-  worker_thread = rtc::Thread::Create();
-  worker_thread->SetName("worker", nullptr);
-  
-  if (!worker_thread->Start()) {
-    
-  }
+	if (!network_thread->Start()) {
 
-  audio_device = webrtc::AudioDeviceModule::Create(0, webrtc::AudioDeviceModule::kPlatformDefaultAudio);
+	}
 
-  if (!audio_device.get()) {
-    // TODO(): Handle Error!
-  }
+	worker_thread = rtc::Thread::Create();
+	worker_thread->SetName("worker", nullptr);
 
-  if (!audio_device->Initialized()) {
-    audio_device->Init();
-  }
+	if (!worker_thread->Start()) {
 
-  if (!audio_device->PlayoutIsInitialized()) {
-    audio_device->InitPlayout();
-  }
+	}
 
-  if (!audio_device->RecordingIsInitialized()) {
-    audio_device->InitRecording();
-  }
+	audio_device = webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kPlatformDefaultAudio, nullptr);
 
-  video_device.reset(webrtc::VideoCaptureFactory::CreateDeviceInfo(0));
+	if (!audio_device.get()) {
+		// TODO(): Handle Error!
+	}
 
-  if (!video_device) {
-    // TODO(): Handle Error!
-  }
+	if (!audio_device->Initialized()) {
+		audio_device->Init();
+	}
 
-  media_factory = webrtc::CreatePeerConnectionFactory(network_thread.get(), 
-                                                      worker_thread.get(), 
-                                                      rtc::Thread::Current(),
-                                                      audio_device.get(),
-                                                      nullptr, // cricket::WebRtcVideoEncoderFactory*
-                                                      nullptr); // cricket::WebRtcVideoDecoderFactory*
+	if (!audio_device->PlayoutIsInitialized()) {
+		audio_device->InitPlayout();
+	}
 
-  media_factory = webrtc::CreatePeerConnectionFactory();
+	if (!audio_device->RecordingIsInitialized()) {
+		audio_device->InitRecording();
+	}
 
-  if (!media_factory.get()) {
-    // TODO(): Handle Error!
-  }
+	video_device.reset(webrtc::VideoCaptureFactory::CreateDeviceInfo(0));
+
+	if (!video_device) {
+		// TODO(): Handle Error!
+	}
+
+	media_factory = webrtc::CreatePeerConnectionFactory(
+		network_thread.get(),
+		worker_thread.get(),
+		rtc::Thread::Current(),
+		std::move(audio_device),
+		nullptr, //  rtc::scoped_refptr<AudioEncoderFactory> audio_encoder_factory,
+		nullptr, //rtc::scoped_refptr<AudioDecoderFactory> audio_decoder_factory,
+		nullptr, //std::unique_ptr<VideoEncoderFactory> video_encoder_factory,
+		std::make_unique<webrtc::VideoDecoderFactoryTemplate<webrtc::OpenH264DecoderTemplateAdapter>>(),
+		nullptr, //rtc::scoped_refptr<AudioMixer> audio_mixer,
+		nullptr, //rtc::scoped_refptr<AudioProcessing> audio_processing,
+		nullptr, //std::unique_ptr<AudioFrameProcessor> owned_audio_frame_processor,
+		nullptr); //std::unique_ptr<FieldTrialsView> field_trials = nullptr)
+
+	if (!media_factory.get()) {
+		// TODO(): Handle Error!
+	}
 }
 
-Let<Promise<MediaDeviceInfos>> MediaDevices::EnumerateDevices() {
-  return Promise<MediaDeviceInfos>::New([](Deferred<MediaDeviceInfos> *Q) {
-    MediaDeviceInfos devices;
-    
-    for (int index = 0, devs = MediaDevicesInternal::audio_device->PlayoutDevices(); index < devs; index++) {
-      char label[webrtc::kAdmMaxDeviceNameSize] = {0};
-      char guid[webrtc::kAdmMaxGuidSize] = {0};
+std::vector<blink::WebMediaDeviceInfo> MediaDevices::EnumerateDevices() {
+	std::vector<blink::WebMediaDeviceInfo> devices;
 
-      if (!MediaDevicesInternal::audio_device->PlayoutDeviceName(index, label, guid)) {
-        MediaDeviceInfo dev;
+	for (int index = 0, devs = MediaDevicesInternal::audio_device->PlayoutDevices(); index < devs; index++) {
+		char label[webrtc::kAdmMaxDeviceNameSize] = { 0 };
+		char guid[webrtc::kAdmMaxGuidSize] = { 0 };
 
-        dev.deviceId = std::to_string(index);
-        dev.label = std::string(label);
-        dev.groupId = std::string(guid);
-        dev.kind = MediaDeviceInfo::kAudioOutput;
+		if (!MediaDevicesInternal::audio_device->PlayoutDeviceName(index, label, guid)) {
+			blink::WebMediaDeviceInfo dev;
 
-        devices.push_back(dev);
-      }
-    }
+			dev.device_id = std::to_string(index);
+			dev.label = std::string(label);
+			dev.group_id = std::string(guid);
 
-    for (int index = 0, devs = MediaDevicesInternal::audio_device->RecordingDevices(); index < devs; index++) {
-      char label[webrtc::kAdmMaxDeviceNameSize] = {0};
-      char guid[webrtc::kAdmMaxGuidSize] = {0};
+			// dev.fac = MediaDeviceInfo::kAudioOutput;
 
-      if (!MediaDevicesInternal::audio_device->RecordingDeviceName(index, label, guid)) {
-        MediaDeviceInfo dev;
+			devices.push_back(dev);
+		}
+	}
 
-        dev.deviceId = std::to_string(index);
-        dev.label = std::string(label);
-        dev.groupId = std::string(guid);
-        dev.kind = MediaDeviceInfo::kAudioInput;
+	for (int index = 0, devs = MediaDevicesInternal::audio_device->RecordingDevices(); index < devs; index++) {
+		char label[webrtc::kAdmMaxDeviceNameSize] = { 0 };
+		char guid[webrtc::kAdmMaxGuidSize] = { 0 };
 
-        devices.push_back(dev);
-      }
-    }
-    
-    for (int index = 0, devs = MediaDevicesInternal::video_device->NumberOfDevices(); index < devs; index++) {
-      char label[webrtc::kAdmMaxDeviceNameSize] = {0};
-      char guid[webrtc::kAdmMaxDeviceNameSize] = {0};
+		if (!MediaDevicesInternal::audio_device->RecordingDeviceName(index, label, guid)) {
+			blink::WebMediaDeviceInfo dev;
 
-      if (!MediaDevicesInternal::video_device->GetDeviceName(index, label, webrtc::kAdmMaxDeviceNameSize, guid, webrtc::kAdmMaxDeviceNameSize)) {
-        MediaDeviceInfo dev;
+			dev.device_id = std::to_string(index);
+			dev.label = std::string(label);
+			dev.group_id = std::string(guid);
+			//dev.kind = MediaDeviceInfo::kAudioInput;
 
-        dev.deviceId = std::to_string(index);
-        dev.label = std::string(label);
-        dev.groupId = std::string(guid);
-        dev.kind = MediaDeviceInfo::kVideoInput;
+			devices.push_back(dev);
+		}
+	}
 
-        devices.push_back(dev);
-      }
-    }
+	for (int index = 0, devs = MediaDevicesInternal::video_device->NumberOfDevices(); index < devs; index++) {
+		char label[webrtc::kAdmMaxDeviceNameSize] = { 0 };
+		char guid[webrtc::kAdmMaxDeviceNameSize] = { 0 };
 
-    Q->Resolve(devices);
-  });
+		if (!MediaDevicesInternal::video_device->GetDeviceName(index, label, webrtc::kAdmMaxDeviceNameSize, guid, webrtc::kAdmMaxDeviceNameSize)) {
+			blink::WebMediaDeviceInfo dev;
+
+			dev.device_id = std::to_string(index);
+			dev.label = std::string(label);
+			dev.group_id = std::string(guid);
+			//dev.kind = MediaDeviceInfo::kVideoInput;
+
+			devices.push_back(dev);
+		}
+	}
+
+	return devices;
+}
+#include <third_party/blink/renderer/modules/mediastream/media_stream_constraints_util.h>
+
+Let<MediaStream> MediaDevices::GetUserMedia(const MediaStreamConstraints& constraints) {
+	if (!constraints.enableAudio && constraints.enableVideo) {
+		return Let<MediaStream>();
+	}
+
+	rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track;
+	rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track;
+
+	if (constraints.enableAudio) {
+		cricket::AudioOptions options;
+		rtc::scoped_refptr<webrtc::AudioSourceInterface> audio_source = MediaDevicesInternal::media_factory->CreateAudioSource(options);
+
+		if (audio_source.get()) {
+			audio_track = MediaDevicesInternal::media_factory->CreateAudioTrack("audio", audio_source.get());
+		}
+	}
+
+	if (constraints.enableVideo) {
+
+		rtc::scoped_refptr<webrtc::FakeVideoTrackSource> video_source =
+			webrtc::FakeVideoTrackSource::Create(/*is_screencast=*/false);
+		//rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source(MediaDevicesInternal::media_factory->CreateVideoSource(capturer));
+
+		if (video_source.get()) {
+			video_track = MediaDevicesInternal::media_factory->CreateVideoTrack("video", video_source.get());
+		}
+	}
+
+	if (video_track.get() || audio_track.get()) {
+		rtc::scoped_refptr<webrtc::MediaStreamInterface> stream = MediaDevicesInternal::media_factory->CreateLocalMediaStream("stream");
+
+		if (stream.get()) {
+			if (video_track.get()) {
+				stream->AddTrack(video_track);
+			}
+
+			if (audio_track.get()) {
+				stream->AddTrack(audio_track);
+			}
+
+			return MediaStreamInternal::New(stream);
+		}
+	}
+
+	return Let<MediaStream>(); // TODO(): Reject!
 }
 
-Let<Promise<Let<MediaStream>>> MediaDevices::GetUserMedia(const MediaStreamConstraints &constraints) {
-  return Promise<Let<MediaStream>>::New([constraints](Deferred<Let<MediaStream>> *Q) {
-    if (!constraints.enableAudio && constraints.enableVideo) {
-      return Q->Resolve(Let<MediaStream>());
-    }
+Let<MediaStream> MediaDevices::GetUserMedia() {
+	MediaStreamConstraints constraints;
 
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track;
-    rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track;
-    
-    if (constraints.enableAudio) {
-      cricket::AudioOptions options;
-      rtc::scoped_refptr<webrtc::AudioSourceInterface> audio_source = MediaDevicesInternal::media_factory->CreateAudioSource(options);
+	constraints.enableAudio = true;
+	constraints.enableVideo = true;
 
-      if (audio_source.get()) {
-        audio_track = MediaDevicesInternal::media_factory->CreateAudioTrack("audio", audio_source);
-      }
-    }
-
-    if (constraints.enableVideo) {
-      cricket::WebRtcVideoDeviceCapturerFactory factory;
-      cricket::VideoCapturer *capturer = nullptr;
-
-      if (constraints.videoSourceId.empty()) {
-        int dev_count = MediaDevicesInternal::video_device->NumberOfDevices();
-        std::vector<std::string> devs;
-
-        for (int index = 0; index < dev_count; index++) {
-          const uint32_t kSize = 256;
-          char name[kSize] = {0};
-          char id[kSize] = {0};
-          
-          if (MediaDevicesInternal::video_device->GetDeviceName(index, name, kSize, id, kSize) != -1) {
-            devs.push_back(name);
-          }
-        }
-
-        for (const auto& name : devs) {
-          capturer = factory.Create(cricket::Device(name, 0));
-          
-          if (capturer) {
-            break;
-          }
-        }
-      } else {
-        capturer = factory.Create(cricket::Device(constraints.videoSourceId, 0));
-      }
-
-      if (capturer) {
-        rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source(MediaDevicesInternal::media_factory->CreateVideoSource(capturer));
-
-        if (video_source.get()) {
-          video_track = MediaDevicesInternal::media_factory->CreateVideoTrack("video", video_source);
-        }
-      }
-    }
-
-    if (video_track.get() || audio_track.get()) {
-      rtc::scoped_refptr<webrtc::MediaStreamInterface> stream = MediaDevicesInternal::media_factory->CreateLocalMediaStream("stream");
-
-      if (stream.get()) {
-        if (video_track.get()) {
-          stream->AddTrack(video_track);
-        }
-
-        if (audio_track.get()) {
-          stream->AddTrack(audio_track);
-        }
-
-        return Q->Resolve(MediaStreamInternal::New(stream));
-      }
-    }
-
-    Q->Resolve(Let<MediaStream>()); // TODO(): Reject!
-  });
-}
-
-Let<Promise<Let<MediaStream>>> MediaDevices::GetUserMedia() {
-  MediaStreamConstraints constraints;
-
-  constraints.enableAudio = true;
-  constraints.enableVideo = true;
-
-  return MediaDevices::GetUserMedia(constraints);
+	return MediaDevices::GetUserMedia(constraints);
 }

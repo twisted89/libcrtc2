@@ -25,18 +25,18 @@
 */
 
 #include "crtc.h"
-#include "webrtc/base/atomicops.h"
+#include <base/atomicops.h>
 
 using namespace crtc;
 
-int Atomic::Increment(volatile int *arg) {
-  return rtc::AtomicOps::Increment(arg);
+intptr_t Atomic::Increment(intptr_t *arg) {
+  return base::subtle::NoBarrier_AtomicIncrement(arg, 1);
 }
 
-int Atomic::Decrement(volatile int *arg) {
-  return rtc::AtomicOps::Decrement(arg);
+intptr_t Atomic::Decrement(intptr_t*arg) {
+  return base::subtle::NoBarrier_AtomicIncrement(arg, -1);
 }
 
-int Atomic::AcquireLoad(volatile int *arg) {
-  return rtc::AtomicOps::AcquireLoad(arg);
+intptr_t Atomic::AcquireLoad(intptr_t*arg) {
+  return base::subtle::NoBarrier_Load(arg);
 }

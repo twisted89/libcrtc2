@@ -34,49 +34,50 @@
 #include "imagebuffer.h"
 #include "videocapturer.h"
 
-#include "webrtc/api/peerconnectioninterface.h"
-#include "webrtc/modules/audio_device/include/audio_device.h"
-#include "webrtc/base/sigslot.h"
+#include <api/peer_connection_interface.h>
+#include <api/create_peerconnection_factory.h>
+#include "modules/audio_device/include/audio_device.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace crtc {
-  class VideoSourceInternal : public VideoSource, public MediaStreamInternal, public sigslot::has_slots<> {
-      friend class Let<VideoSourceInternal>;
-      friend class VideoSource;
+	class VideoSourceInternal : public VideoSource, public MediaStreamInternal, public sigslot::has_slots<> {
+		friend class Let<VideoSourceInternal>;
+		friend class VideoSource;
 
-    public:
-      std::string Id() const override;
-      void AddTrack(const Let<MediaStreamTrack> &track) override;
-      void RemoveTrack(const Let<MediaStreamTrack> &track) override;
-      Let<MediaStreamTrack> GetTrackById(const std::string &id) const override;
-      MediaStreamTracks GetAudioTracks() const override;
-      MediaStreamTracks GetVideoTracks() const override;
-      Let<MediaStream> Clone() override;
+	public:
+		std::string Id() const override;
+		//void AddTrack(const Let<MediaStreamTrack>& track) override;
+		//void RemoveTrack(const Let<MediaStreamTrack>& track) override;
+		Let<MediaStreamTrack> GetTrackById(const std::string& id) const override;
+		MediaStreamTracks GetAudioTracks() const override;
+		MediaStreamTracks GetVideoTracks() const override;
+		Let<MediaStream> Clone() override;
 
-      VideoCapturer* GetCapturer() const;
+		VideoCapturer* GetCapturer() const;
 
-      bool IsRunning() const override;
-      void Stop() override;
-      int Width() const override;
-      int Height() const override;
-      float Fps() const override;
-      void Write(const Let<ImageBuffer> &frame, ErrorCallback callback = ErrorCallback()) override;
+		bool IsRunning() const override;
+		void Stop() override;
+		int Width() const override;
+		int Height() const override;
+		float Fps() const override;
+		void Write(const Let<ImageBuffer>& frame, ErrorCallback callback = ErrorCallback()) override;
 
-    private:
-      void OnStateChange(cricket::VideoCapturer* capturer, cricket::CaptureState capture_state);
-      void OnDrain();
+	private:
+		void OnStateChange(cricket::VideoCapturer* capturer, cricket::CaptureState capture_state);
+		void OnDrain();
 
-      static volatile int counter;
-      static Let<WorkerInternal> worker;
-      static rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
-      static rtc::scoped_refptr<webrtc::AudioDeviceModule> audio;
+		static volatile int counter;
+		static std::shared_ptr<WorkerInternal> worker;
+		static rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
+		static rtc::scoped_refptr<webrtc::AudioDeviceModule> audio;
 
-    protected:
-      explicit VideoSourceInternal(webrtc::MediaStreamInterface *stream = nullptr);
-      ~VideoSourceInternal() override;
+	protected:
+		explicit VideoSourceInternal(webrtc::MediaStreamInterface* stream = nullptr);
+		~VideoSourceInternal() override;
 
-      Let<Event> _event;
-      VideoCapturer* _capturer;
-  };
-};
+		Let<Event> _event;
+		VideoCapturer* _capturer;
+	};
+}
 
 #endif

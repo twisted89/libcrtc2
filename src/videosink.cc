@@ -29,13 +29,15 @@
 
 using namespace crtc;
 
-VideoSinkInternal::VideoSinkInternal(const Let<MediaStreamTrackInternal> &track, 
-                                     const rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track) : 
+VideoSinkInternal::VideoSinkInternal(const Let<MediaStreamTrackInternal> &track) : 
   MediaStreamTrackInternal(track),
   _event(Let<Event>::New()),
-  _video_track(video_track)
+  _video_track(static_cast<webrtc::VideoTrackInterface*>(track->GetTrack().Get()))
 {
-  video_track->AddOrUpdateSink(this, rtc::VideoSinkWants());
+    _video_track->AddOrUpdateSink(this, rtc::VideoSinkWants());
+  if (!_video_track->enabled()) {
+      _video_track->set_enabled(true);
+  }
 }
 
 VideoSinkInternal::~VideoSinkInternal() {
@@ -51,14 +53,8 @@ Let<VideoSink> VideoSink::New(const Let<MediaStreamTrack> &mediaStreamTrack) {
   }
 
   Let<MediaStreamTrackInternal> track(mediaStreamTrack->Clone()); 
-  rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> stream_track = track->GetTrack();
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track = static_cast<webrtc::VideoTrackInterface*>(stream_track.get());
-  Let<VideoSinkInternal> self(Let<VideoSinkInternal>::New(track, video_track));
+  Let<VideoSinkInternal> self(Let<VideoSinkInternal>::New(track));
   
-  if (!video_track->enabled()) {
-    video_track->set_enabled(true);
-  }
-
   return self;
 }
 

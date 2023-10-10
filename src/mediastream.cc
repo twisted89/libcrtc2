@@ -25,27 +25,35 @@
 
 #include "crtc.h"
 #include "mediastream.h"
+#include <api/make_ref_counted.h>
 
 using namespace crtc;
 
-webrtc::MediaStreamInterface *MediaStreamInternal::New(const Let<MediaStream> &stream) {
-  if (!stream.IsEmpty()) {
-    Let<MediaStreamInternal> stream_internal(stream);
-    return stream_internal->_stream.get();
-  }
+Let<MediaStream> MediaStreamInternal::New(webrtc::MediaStreamInterface* stream) {
+    if (stream) {
+        return Let<MediaStreamInternal>::New(stream);
+    }
 
-  return nullptr;
+    return Let<MediaStream>();
 }
 
-Let<MediaStream> MediaStreamInternal::New(webrtc::MediaStreamInterface *stream) {
-  if (stream) {
+Let<MediaStream> MediaStreamInternal::New(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
+  if (stream.get()) {
     return Let<MediaStreamInternal>::New(stream);
   }
 
   return Let<MediaStream>();
 }
 
-MediaStreamInternal::MediaStreamInternal(webrtc::MediaStreamInterface *stream) : 
+MediaStreamInternal::MediaStreamInternal(webrtc::MediaStreamInterface* stream) :
+    _stream(stream),
+    _audio_tracks(stream->GetAudioTracks()),
+    _video_tracks(stream->GetVideoTracks())
+{
+    _stream->RegisterObserver(this);
+}
+
+MediaStreamInternal::MediaStreamInternal(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) : 
   _stream(stream),
   _audio_tracks(stream->GetAudioTracks()),
   _video_tracks(stream->GetVideoTracks())
@@ -58,40 +66,44 @@ MediaStreamInternal::~MediaStreamInternal() {
 }
 
 std::string MediaStreamInternal::Id() const {
-  return _stream->label();
+  return _stream->id();
 }
 
+
+/*
 void MediaStreamInternal::AddTrack(const Let<MediaStreamTrack> &track) {
-  rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> _track = MediaStreamTrackInternal::New(track);
+  rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> _track = rtc::make_ref_counted<MediaStreamTrackInternal>(track);
 
   if (_track.get()) {
     if (track->Kind() == MediaStreamTrack::kAudio) {
-      if (!_stream->AddTrack(static_cast<webrtc::AudioTrackInterface*>(_track.get()))) {
+      if (!_stream->AddTrack(rtc::make_ref_counted<webrtc::AudioTrackInterface>(static_cast<webrtc::AudioTrackInterface*>(_track.get())))) {
         // TODO(): Handle Error!
       }
     } else {
-      if (!_stream->AddTrack(static_cast<webrtc::VideoTrackInterface*>(_track.get()))) {
+      if (!_stream->AddTrack(rtc::make_ref_counted<webrtc::VideoTrackInterface>(static_cast<webrtc::VideoTrackInterface*>(_track.get())))) {
         // TODO(): Handle Error!
       }
     }
   }
 }
+
 
 void MediaStreamInternal::RemoveTrack(const Let<MediaStreamTrack> &track) {
-  rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> _track = MediaStreamTrackInternal::New(track);
+  rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> _track = rtc::make_ref_counted<MediaStreamTrackInternal>(track);
 
   if (_track.get()) {
     if (track->Kind() == MediaStreamTrack::kAudio) {
-      if (!_stream->RemoveTrack(static_cast<webrtc::AudioTrackInterface*>(_track.get()))) {
+      if (!_stream->RemoveTrack(rtc::make_ref_counted<webrtc::AudioTrackInterface>(static_cast<webrtc::AudioTrackInterface*>(_track.get())))) {
         // TODO(): Handle Error!
       }
     } else {
-      if (!_stream->RemoveTrack(static_cast<webrtc::VideoTrackInterface*>(_track.get()))) {
+      if (!_stream->RemoveTrack(rtc::make_ref_counted<webrtc::VideoTrackInterface>(static_cast<webrtc::VideoTrackInterface*>(_track.get())))) {
         // TODO(): Handle Error!
       }
     }
   }
 }
+*/
 
 Let<MediaStreamTrack> MediaStreamInternal::GetTrackById(const std::string &id) const {
   rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = _stream->FindAudioTrack(id);
@@ -107,13 +119,18 @@ Let<MediaStreamTrack> MediaStreamInternal::GetTrackById(const std::string &id) c
   return Let<MediaStream>();
 }
 
+intptr_t MediaStreamInternal::GetStream()
+{
+    return reinterpret_cast<intptr_t>(_stream.get());
+}
+
 MediaStreamTracks MediaStreamInternal::GetAudioTracks() const {
   MediaStreamTracks tracks;
 
   auto audio_tracks(_stream->GetAudioTracks());
 
   for (const auto& track : audio_tracks) {
-    tracks.push_back(MediaStreamTrackInternal::New(track));
+    tracks.push_back(MediaStreamTrackInternal::New(track.get()));
   }
 
   return tracks;
@@ -125,7 +142,7 @@ MediaStreamTracks MediaStreamInternal::GetVideoTracks() const {
   auto video_tracks(_stream->GetVideoTracks());
 
   for (const auto& track : video_tracks) {
-    tracks.push_back(MediaStreamTrackInternal::New(track));
+    tracks.push_back(MediaStreamTrackInternal::New(track.get()));
   }
 
   return tracks;

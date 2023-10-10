@@ -30,33 +30,34 @@
 #include "mediastream.h"
 #include "audiodevice.h"
 
-namespace crtc { 
-  class AudioSourceInternal : public AudioSource, public MediaStreamInternal, public sigslot::has_slots<> {
-      friend class Let<AudioSourceInternal>;
-      friend class AudioSource;
-    public:
-      bool IsRunning() const override;
-      void Stop() override;
+namespace crtc {
+	class AudioSourceInternal : public AudioSource, public MediaStreamInternal, public sigslot::has_slots<> {
+		friend class Let<AudioSourceInternal>;
+		friend class AudioSource;
+	public:
+		bool IsRunning() const override;
+		void Stop() override;
 
-      void Write(const Let<AudioBuffer> &buffer, ErrorCallback callback = ErrorCallback()) override;
+		void Write(const Let<AudioBuffer>& buffer, ErrorCallback callback = ErrorCallback()) override;
 
-      std::string Id() const override;
-      void AddTrack(const Let<MediaStreamTrack> &track) override;
-      void RemoveTrack(const Let<MediaStreamTrack> &track) override;
-      Let<MediaStreamTrack> GetTrackById(const std::string &id) const override;
-      MediaStreamTracks GetAudioTracks() const override;
-      MediaStreamTracks GetVideoTracks() const override;
-      Let<MediaStream> Clone() override;
+		std::string Id() const override;
+		//void AddTrack(const Let<MediaStreamTrack>& track) override;
+		//void RemoveTrack(const Let<MediaStreamTrack>& track) override;
+		Let<MediaStreamTrack> GetTrackById(const std::string& id) const override;
+		intptr_t GetStream() override;
+		MediaStreamTracks GetAudioTracks() const override;
+		MediaStreamTracks GetVideoTracks() const override;
+		Let<MediaStream> Clone() override;
 
-    protected:
-      explicit AudioSourceInternal();
-      ~AudioSourceInternal() override;
+	protected:
+		explicit AudioSourceInternal();
+		~AudioSourceInternal() override;
 
-      void OnDrain();
+		void OnDrain();
 
-      static volatile int counter;
-      rtc::scoped_refptr<AudioDevice> _audio;
-  };
-};
+		static volatile int counter;
+		rtc::scoped_refptr<AudioDevice> _audio;
+	};
+}
 
 #endif

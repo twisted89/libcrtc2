@@ -26,8 +26,8 @@
 #include "crtc.h"
 #include "videosource.h"
 #include "rtcpeerconnection.h"
-#include "webrtc/base/stringencode.h"
-#include "webrtc/api/test/fakeconstraints.h"
+#include <base/atomicops.h>
+//#include "webrtc/api/test/fakeconstraints.h"
 
 using namespace crtc;
 
@@ -52,9 +52,9 @@ VideoCapturer* VideoSourceInternal::GetCapturer() const {
 }
 
 Let<VideoSource> VideoSource::New(int width, int height, float fps) {
-  std::string stream_label = "videosource" + rtc::ToString<int>(rtc::AtomicOps::AcquireLoad(&VideoSourceInternal::counter));
+  std::string stream_label = "videosource" + std::to_string(base::subtle::Acquire_Load(&VideoSourceInternal::counter));
   std::string track_label = stream_label + "_videotrack";
-  rtc::AtomicOps::Increment(&VideoSourceInternal::counter);
+  base::subtle::Barrier_AtomicIncrement(&VideoSourceInternal::counter, 1);
 
   rtc::scoped_refptr<webrtc::MediaStreamInterface> stream(RTCPeerConnectionInternal::factory->CreateLocalMediaStream(stream_label));
 

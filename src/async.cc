@@ -24,37 +24,21 @@
 */
 
 #include "crtc.h"
-#include "async.h"
 #include "worker.h"
 
-#include "webrtc/base/thread.h"
-#include "webrtc/base/asyncinvoker.h"
+#include "rtc_base/thread.h"
 
 using namespace crtc;
 
-std::unique_ptr<rtc::Thread> _worker;
-rtc::AsyncInvoker* _async;
+void Async::Call(Callback callback, int delayMs, Worker* ptr) {
+	Let<Event> event = Event::New();
 
-void AsyncInternal::Init() {
-  _async = new rtc::AsyncInvoker();
-}
+	rtc::Thread* target = ptr ? static_cast<WorkerInternal*>(ptr) : rtc::Thread::Current();
 
-void AsyncInternal::Dispose() {
-  delete _async;
-}
-
-void Async::Call(Functor<void()> callback, int delay, Let<Worker> ptr) {
-  Let<Event> event = Event::New();
-  Let<WorkerInternal> worker(ptr);
-  rtc::Thread *target = (!worker.IsEmpty()) ? worker : rtc::Thread::Current();
-
-  if (delay > 0) {
-    _async->AsyncInvokeDelayed<void>(RTC_FROM_HERE, target, [worker, callback, event]() mutable {
-      callback();
-    }, delay);
-  } else {
-    _async->AsyncInvoke<void>(RTC_FROM_HERE, target, [worker, callback, event]() mutable {
-      callback();
-    });
-  }
+	if (delayMs > 0) {
+		target->PostDelayedTask([callback]() { callback(); }, webrtc::TimeDelta::Millis(delayMs));
+	}
+	else {
+		target->PostTask([callback]() { callback(); });
+	}
 }

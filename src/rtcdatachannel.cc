@@ -170,7 +170,7 @@ Let<ArrayBuffer> WrapRtcBuffer::Slice(size_t begin, size_t end) const {
 }
 
 uint8_t *WrapRtcBuffer::Data() {
-  return _data.data();
+  return const_cast<uint8_t*>(_data.data());
 }
 
 const uint8_t *WrapRtcBuffer::Data() const {

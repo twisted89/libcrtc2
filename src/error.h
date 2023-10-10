@@ -49,6 +49,6 @@ namespace crtc {
       std::string _filename;
       int _linenumber;
   };
-};
+}
 
 #endif

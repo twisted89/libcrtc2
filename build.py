@@ -7,6 +7,8 @@ import shutil
 import tarfile
 import platform
 
+
+
 root_dir = os.path.dirname(os.path.realpath(__file__))
 dist_dir = os.path.join(root_dir, 'dist')
 dist_include_dir = os.path.join(dist_dir, 'include')
@@ -27,7 +29,7 @@ if (target_cpu == 'x86_64'):
 elif (target_cpu == 'i386'):
   target_cpu = 'x86'
 
-release_name = ''.join(subprocess.check_output(['git', 'describe', '--abbrev=0', '--tags']).split())
+release_name = ''.join(str(subprocess.check_output(['git', 'describe', '--abbrev=0', '--tags']).split()))
 
 if (os.environ.get('WEBRTC_TARGET_OS')):
   target_os = os.environ['WEBRTC_TARGET_OS']
@@ -48,7 +50,7 @@ webrtc_src_dir = os.path.join(webrtc_dir, 'src')
 webrtc_crtc_dir = os.path.join(webrtc_src_dir, 'crtc')
 webrtc_sync = os.path.join(third_party_dir, '.webrtc_sync')
 
-gn_flags = '--args=is_debug=false is_component_build=true rtc_include_tests=false use_ozone=true is_desktop_linux=false rtc_use_gtk=false clang_use_chrome_plugins=true rtc_enable_protobuf=false'
+gn_flags = '--args=is_debug=false is_component_build=true rtc_include_tests=false is_desktop_linux=false rtc_use_gtk=false rtc_enable_protobuf=false'
 
 if (target_os != target_platform):
   gn_flags += ' target_os="' + target_os + '"'
@@ -64,6 +66,10 @@ if not os.path.exists(depot_tools_dir):
 
 os.environ['PATH'] += os.pathsep + depot_tools_dir
 
+if sys.platform.startswith('win32'):
+  os.environ['vs2022_install'] = 'C:\Program Files\Microsoft Visual Studio\2022\Professional'
+  os.environ['DEPOT_TOOLS_WIN_TOOLCHAIN'] = '0'
+
 if not os.path.exists(webrtc_dir):
   os.mkdir(webrtc_dir)
 
@@ -71,7 +77,10 @@ if not os.path.exists(webrtc_sync):
   os.chdir(webrtc_dir)
 
   if not os.path.exists(webrtc_src_dir):
-    subprocess.call(['fetch', '--nohooks', 'webrtc'])
+    if sys.platform.startswith('win32'):
+        subprocess.call(['fetch.bat', '--nohooks', '--no-history', 'webrtc'])
+    else:
+        subprocess.call(['fetch', '--nohooks', '--no-history', 'webrtc'])
   else:
     os.chdir(webrtc_src_dir)
 
@@ -86,11 +95,15 @@ if not os.path.exists(webrtc_sync):
 
     os.chdir(webrtc_dir)
   
-  subprocess.call(['gclient', 'sync', '--with_branch_heads', '--force'])
+  if sys.platform.startswith('win32'):
+   subprocess.call(['gclient.bat', 'sync', '--with_branch_heads', '--force'])
+  else:
+    subprocess.call(['gclient', 'sync', '--with_branch_heads', '--force'])
 
   os.chdir(webrtc_src_dir)
 
-  subprocess.call(['git', 'checkout', '-b', 'libcrtc', 'refs/remotes/branch-heads/58'])
+  #subprocess.call(['git', 'checkout', '-b', 'libcrtc', 'refs/remotes/branch-heads/58'])
+  #subprocess.call(['git', 'checkout', '-b', 'libcrtc', 'main'])
 
   if os.path.exists(os.path.join(webrtc_src_dir, 'BUILD.gn')):
     os.remove(os.path.join(webrtc_src_dir, 'BUILD.gn'))
@@ -104,13 +117,22 @@ if not os.path.exists(webrtc_sync):
   os.chdir(root_dir)
 
 os.chdir(webrtc_src_dir)
-subprocess.call(['gn', 'gen', out_dir, gn_flags])
+if sys.platform.startswith('win32'):
+  subprocess.call(['gn.bat', 'gen', out_dir, gn_flags])
+else:
+  subprocess.call(['gn', 'gen', out_dir, gn_flags])
 os.chdir(root_dir)
 
 if os.environ.get('BUILD_WEBRTC_EXAMPLES') == 'true':
-  subprocess.call(['ninja', '-C', 'out', 'crtc-examples'])
+  if sys.platform.startswith('win32'):
+    subprocess.call(['ninja.bat', '-C', 'out', 'crtc-examples'])
+  else:
+    subprocess.call(['ninja', '-C', 'out', 'crtc-examples'])
 else:
-  subprocess.call(['ninja', '-C', 'out', 'crtc'])
+  if sys.platform.startswith('win32'):
+    subprocess.call(['ninja.bat', '-C', 'out', 'crtc'])
+  else:
+    subprocess.call(['ninja', '-C', 'out', 'crtc'])
 
 if os.path.exists(dist_dir):
   shutil.rmtree(dist_dir)

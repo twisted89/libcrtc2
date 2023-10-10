@@ -25,57 +25,38 @@
 
 #include "crtc.h"
 #include "module.h"
-#include "async.h"
 #include "rtcpeerconnection.h"
-#include "videosource.h"
-
-#include "webrtc/base/thread.h"
-#include "webrtc/base/ssladapter.h"
-#include "webrtc/base/event_tracer.h"
-#include "webrtc/system_wrappers/include/trace.h"
-#include "webrtc/base/logging.h"
-#include "webrtc/base/maccocoathreadhelper.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/ssl_adapter.h"
+#include <base/atomicops.h>
 
 #ifdef CRTC_OS_WIN
-  #include "webrtc/base/win32socketinit.h"
-  #include "webrtc/base/win32socketserver.h"
+#include "rtc_base/win32_socket_init.h"
 #endif
 
 using namespace crtc;
 
-volatile int ModuleInternal::pending_events = 0;
+volatile intptr_t ModuleInternal::pending_events = 0;
 
 void Module::Init() {
-#ifdef CRTC_OS_OSX
-  rtc::InitCocoaMultiThreading();
-#endif
-
-#ifdef CRTC_OS_WIN
-  rtc::EnsureWinsockInit();
-#endif
-
-  rtc::ThreadManager::Instance()->WrapCurrentThread();
-  //webrtc::Trace::CreateTrace();
-  //rtc::LogMessage::LogToDebug(rtc::LS_ERROR);
-
-  rtc::InitializeSSL();
-
-  AsyncInternal::Init();
-  RTCPeerConnectionInternal::Init();
+	rtc::ThreadManager::Instance()->WrapCurrentThread();
+	//webrtc::Trace::CreateTrace();
+	//rtc::LogMessage::LogToDebug(rtc::LS_ERROR);
+	rtc::InitializeSSL();
+	RTCPeerConnectionInternal::Init();
 }
 
 void Module::Dispose() {
-  RTCPeerConnectionInternal::Dispose();
-  AsyncInternal::Dispose();
-  rtc::CleanupSSL();
+	RTCPeerConnectionInternal::Dispose();
+	rtc::CleanupSSL();
 }
 
 bool Module::DispatchEvents(bool kForever) {
-  bool result = false;
-   
-  do {
-    result = (rtc::AtomicOps::AcquireLoad(&ModuleInternal::pending_events) > 0 && rtc::Thread::Current()->ProcessMessages(kForever ? 1000 : 0));
-  } while (kForever && result);
+	bool result = false;
 
-  return result;
+	do {
+		result = (base::subtle::NoBarrier_Load(&ModuleInternal::pending_events) > 0 && rtc::Thread::Current()->ProcessMessages(kForever ? 1000 : 0));
+	} while (kForever && result);
+
+	return result;
 }

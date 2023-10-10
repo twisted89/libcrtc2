@@ -28,49 +28,27 @@
 #define CRTC_WORKER_H
 
 #include "crtc.h"
-#include "webrtc/base/thread.h"
-#include "webrtc/base/nullsocketserver.h"
-#include "webrtc/base/criticalsection.h"
-#include "webrtc/base/platform_thread.h"
-#include "webrtc/typedefs.h"
-#include "webrtc/system_wrappers/include/event_wrapper.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/null_socket_server.h"
+#include "rtc_base/synchronization/mutex_critical_section.h"
+#include "rtc_base/platform_thread.h"
 
 namespace crtc {
-  class WorkerInternal : public Worker, public rtc::NullSocketServer, public rtc::Thread {
-      friend class Worker;
-      friend class Let<WorkerInternal>;
+	class WorkerInternal : public Worker, public rtc::NullSocketServer, public rtc::Thread {
+		friend class Worker;
+		friend class Let<WorkerInternal>;
 
-    private:
-      static thread_local Let<WorkerInternal> current_worker;
+	public:
+		explicit WorkerInternal();
+		~WorkerInternal() override;
+		void Call(Callback callback, int delayMs);
 
-    protected:
-      explicit WorkerInternal();
-      ~WorkerInternal() override;
+	private:
+		static thread_local WorkerInternal* current_worker;
 
-      bool Wait(int cms, bool process_io) final;
-      void Run() override;
-  };
-
-  class RealTimeClockInternal : public RealTimeClock {
-      friend class RealTimeClock;
-      friend class Let<RealTimeClock>;
-
-    public:
-      void Start(uint32_t interval_ms = 0) override;
-      void Stop() override;
-
-    protected:
-      explicit RealTimeClockInternal(const Callback &runnable);
-      ~RealTimeClockInternal() override;
-
-      std::unique_ptr<webrtc::EventTimerWrapper> _tick;
-      rtc::PlatformThread _thread;
-      rtc::PlatformThreadId _signal;
-
-      Callback _runnable;
-      
-      static bool Run(void* obj);
-  };
-};
+	protected:
+		void Run() override;
+	};
+}
 
 #endif

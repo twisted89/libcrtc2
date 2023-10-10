@@ -55,6 +55,7 @@ std::string AudioSourceInternal::Id() const {
   return MediaStreamInternal::Id();
 }
 
+/*
 void AudioSourceInternal::AddTrack(const Let<MediaStreamTrack> &track) {
   return MediaStreamInternal::AddTrack(track);
 }
@@ -62,9 +63,15 @@ void AudioSourceInternal::AddTrack(const Let<MediaStreamTrack> &track) {
 void AudioSourceInternal::RemoveTrack(const Let<MediaStreamTrack> &track) {
   return MediaStreamInternal::RemoveTrack(track);
 }
+*/
 
 Let<MediaStreamTrack> AudioSourceInternal::GetTrackById(const std::string &id) const {
   return MediaStreamInternal::GetTrackById(id);
+}
+
+intptr_t AudioSourceInternal::GetStream()
+{
+	return MediaStreamInternal::GetStream();
 }
 
 MediaStreamTracks AudioSourceInternal::GetAudioTracks() const { 

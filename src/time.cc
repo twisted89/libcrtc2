@@ -24,7 +24,7 @@
 */
 
 #include "crtc.h"
-#include "webrtc/base/timeutils.h"
+#include "rtc_base/time_utils.h"
 
 using namespace crtc;
 

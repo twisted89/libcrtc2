@@ -25,93 +25,51 @@
 
 #include "crtc.h"
 #include "worker.h"
-
-#include "webrtc/base/timeutils.h"
+#include "rtc_base/time_utils.h"
 
 using namespace crtc;
 
-thread_local Let<WorkerInternal> WorkerInternal::current_worker;
-
-bool WorkerInternal::Wait(int cms, bool process_io) {
-  if (RefCount() > 1) {
-    return rtc::NullSocketServer::Wait(1000, process_io);
-  }
-
-  return false;
-};
+thread_local WorkerInternal* WorkerInternal::current_worker;
 
 void WorkerInternal::Run() {
   WorkerInternal::current_worker = this;
   ProcessMessages(rtc::ThreadManager::kForever);
-  WorkerInternal::current_worker.Dispose();
+  WorkerInternal::current_worker = nullptr;
 }
 
 WorkerInternal::WorkerInternal() : rtc::NullSocketServer(), rtc::Thread(this) {
   SetName("worker", nullptr);
 }
 
+void WorkerInternal::Call(Callback callback, int delayMs) {
+    if (delayMs > 0) {
+        PostDelayedTask([callback]() { callback(); }, webrtc::TimeDelta::Millis(delayMs));
+    }
+    else {
+        PostTask([callback]() { callback(); });
+    }
+}
+
 WorkerInternal::~WorkerInternal() {
   rtc::Thread::Stop();
 }
 
-Let<Worker> Worker::New(const Callback &runnable) {
-  Let<WorkerInternal> worker = Let<WorkerInternal>::New();
+std::shared_ptr<Worker> Worker::New(const Callback &runnable) {
+  std::shared_ptr<WorkerInternal> worker = std::make_shared<WorkerInternal>();
   
-  if (!worker.IsEmpty()) {
-    rtc::Thread *thread = worker;
-
-    if (thread->Start()) {
+  if (worker) {
+    if (worker->Start()) {
       if (!runnable.IsEmpty()) {
-        Async::Call(runnable, 0, worker);
+          worker->Call(runnable, 0);
       }
 
       return worker;
     }
   }
 
-  return Let<Worker>();
+  return nullptr;
 }
 
-Let<Worker> Worker::This() {
+Worker* Worker::This() {
   return WorkerInternal::current_worker;
-}
-
-RealTimeClockInternal::RealTimeClockInternal(const Callback &runnable) :
-  _tick(webrtc::EventTimerWrapper::Create()),
-  _thread(RealTimeClockInternal::Run, this, "RealTimeClock"),
-  _runnable(runnable)
-{
-  
-}
-
-bool RealTimeClockInternal::Run(void* obj) {
-  Let<RealTimeClockInternal> clock(static_cast<RealTimeClockInternal*>(obj));
- 
-  clock->_signal = rtc::CurrentThreadId();
-  clock->_runnable();
-  clock->_tick->Wait(WEBRTC_EVENT_INFINITE);
-  
-  return true;
-}
-
-RealTimeClockInternal::~RealTimeClockInternal() {
-  Stop();
-}
-
-void RealTimeClockInternal::Start(uint32_t interval_ms) {
-  if (rtc::CurrentThreadId() != _signal && !_thread.IsRunning()) {
-    _tick->StartTimer(true, interval_ms);
-    _thread.Start();
-    _thread.SetPriority(rtc::kHighPriority);
-  }
-}
-
-void RealTimeClockInternal::Stop() {
-  if (rtc::CurrentThreadId() != _signal && _thread.IsRunning()) {
-    _thread.Stop();
-  }
-}
-
-Let<RealTimeClock> RealTimeClock::New(const Callback &runnable) {
-  return Let<RealTimeClockInternal>::New(runnable);
 }

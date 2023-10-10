@@ -31,43 +31,47 @@
 #include "mediastreamtrack.h"
 
 namespace crtc {
-  class MediaStreamInternal : public MediaStream, public webrtc::ObserverInterface {
-      friend class Let<MediaStreamInternal>;
+	class MediaStreamInternal : public MediaStream, public webrtc::ObserverInterface {
+		friend class Let<MediaStreamInternal>;
 
-    public:
-      static webrtc::MediaStreamInterface *New(const Let<MediaStream> &stream);
-      static Let<MediaStream> New(webrtc::MediaStreamInterface *stream = nullptr);  
+	public:
+		//static webrtc::MediaStreamInterface* New(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
+		static Let<MediaStream> New(webrtc::MediaStreamInterface* stream);
+		static Let<MediaStream> New(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
 
-      std::string Id() const override;
+		std::string Id() const override;
 
-      void AddTrack(const Let<MediaStreamTrack> &track) override;
-      void RemoveTrack(const Let<MediaStreamTrack> &track) override;
+		//void AddTrack(const Let<MediaStreamTrack>& track) override;
+		//void RemoveTrack(const Let<MediaStreamTrack>& track) override;
 
-      Let<MediaStreamTrack> GetTrackById(const std::string &id) const override;
+		Let<MediaStreamTrack> GetTrackById(const std::string& id) const override;
 
-      MediaStreamTracks GetAudioTracks() const override;
-      MediaStreamTracks GetVideoTracks() const override;
+		intptr_t GetStream() override;
 
-      Let<MediaStream> Clone() override;
+		MediaStreamTracks GetAudioTracks() const override;
+		MediaStreamTracks GetVideoTracks() const override;
 
-      void OnChanged() override;
+		Let<MediaStream> Clone() override;
 
-    protected:
-      explicit MediaStreamInternal(webrtc::MediaStreamInterface *stream = nullptr);
-      ~MediaStreamInternal() override;
- 
-      virtual void OnAddTrack(const Let<MediaStreamTrack> &track) {
-        onaddtrack(track);
-      }
+		void OnChanged() override;
 
-      virtual void OnRemoveTrack(const Let<MediaStreamTrack> &track) {
-        onremovetrack(track);
-      }
+	protected:
+		explicit MediaStreamInternal(webrtc::MediaStreamInterface* stream);
+		explicit MediaStreamInternal(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream = nullptr);
+		~MediaStreamInternal() override;
 
-      rtc::scoped_refptr<webrtc::MediaStreamInterface> _stream;
-      webrtc::AudioTrackVector _audio_tracks;
-      webrtc::VideoTrackVector _video_tracks;
-  };
-};
+		virtual void OnAddTrack(const Let<MediaStreamTrack>& track) {
+			onaddtrack(track);
+		}
+
+		virtual void OnRemoveTrack(const Let<MediaStreamTrack>& track) {
+			onremovetrack(track);
+		}
+
+		rtc::scoped_refptr<webrtc::MediaStreamInterface> _stream;
+		webrtc::AudioTrackVector _audio_tracks;
+		webrtc::VideoTrackVector _video_tracks;
+	};
+}
 
 #endif

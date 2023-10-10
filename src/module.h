@@ -30,10 +30,10 @@
 #include "crtc.h"
 
 namespace crtc {
-  class ModuleInternal {
-    public:
-      static volatile int pending_events;
-  };
-};
+	class ModuleInternal {
+	public:
+		static volatile intptr_t pending_events;
+	};
+}
 
 #endif

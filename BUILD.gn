@@ -2,166 +2,105 @@ declare_args() {
   build_with_chromium = false
 }
 
-import("//webrtc/webrtc.gni")
+import("../webrtc.gni")
+
+if (is_android) {
+  import("//build/config/android/config.gni")
+  import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
+} else if (is_mac) {
+  import("//build/config/mac/rules.gni")
+} else if (is_ios) {
+  import("//build/config/ios/rules.gni")
+} else if (is_linux || is_chromeos) {
+  import("//build/config/linux/pkg_config.gni")
+}
+
+group("examples") {
+  # This target shall build all targets in examples.
+  testonly = true
+  deps = [
+    ":crtc"
+  ]
+}
 
 rtc_shared_library("crtc") {
   libs = []
   defines = []
-
+  
   sources = [
     "src/atomic.cc",
     "src/event.cc",
     "src/error.cc",
     "src/arraybuffer.cc",
     "src/worker.cc",
-    "src/async.cc",
     "src/module.cc",
     "src/rtcpeerconnection.cc",
     "src/rtcdatachannel.cc",
     "src/mediastream.cc",
     "src/mediastreamtrack.cc",
     "src/audiosink.cc",
-    "src/videosource.cc",
-    "src/videosink.cc",
-    "src/imagebuffer.cc",
+    #"src/videosource.cc",
+    #"src/videosink.cc",
+    #"src/imagebuffer.cc",
     "src/time.cc",
     "src/audiobuffer.cc",
     "src/audiosource.cc",
   ]
 
-  if (is_win) {
-    defines += [
-      "CRTC_OS_WIN"
-    ]
-  } else {
-    defines += [
-      "CRTC_OS_POSIX"
-    ]
-  }
-
-  if (is_mac) {
-    defines += [
-      "CRTC_OS_OSX"
-    ]
-  }
-
-  cflags = [
-    "-fexceptions",
-  ]
-
-  cflags_cc = [
-    "-fexceptions",
-  ]
-
   deps = [
-    "//third_party/libyuv",
-    "//webrtc/pc:libjingle_peerconnection",
-    "//webrtc/system_wrappers:field_trial_default",
-    "//webrtc/system_wrappers:metrics_default",
+      "../base",
+      "../api:audio_options_api",
+      "../api:create_peerconnection_factory",
+      "../api:libjingle_peerconnection_api",
+      "../api:media_stream_interface",
+      "../api:rtp_sender_interface",
+      "../api:scoped_refptr",
+      "../api/audio:audio_mixer_api",
+      "../api/audio_codecs:audio_codecs_api",
+      "../api/task_queue:pending_task_safety_flag",
+      "../api/units:time_delta",
+      "../api/video:video_frame",
+      "../api/video:video_rtp_headers",
+      "../api/video_codecs:video_codecs_api",
+      "../api/video_codecs:video_decoder_factory_template",
+      "../api/video_codecs:video_decoder_factory_template_open_h264_adapter",
+      "../api/video_codecs:video_encoder_factory_template",
+      "../api/video_codecs:video_encoder_factory_template_open_h264_adapter",
+      "../media:media_channel",
+      "../media:rtc_media_base",
+      "../p2p:rtc_p2p",
+      "../pc:video_track_source",
+      "../rtc_base:checks",
+      "../rtc_base:logging",
+      "../rtc_base:macromagic",
+      "../rtc_base:net_helpers",
+      "../rtc_base:refcount",
+      "../rtc_base:rtc_certificate_generator",
+      "../rtc_base:ssl",
+      "../rtc_base:stringutils",
+      "../rtc_base:threading",
+      "../rtc_base/third_party/sigslot",
+      "../system_wrappers:field_trial",
+      "//third_party/abseil-cpp/absl/memory",
+      "//third_party/abseil-cpp/absl/types:optional",
   ]
-
-  if (!build_with_chromium && is_clang) {
-    suppressed_configs += [ "//build/config/clang:find_bad_constructs" ]
+  
+  if (is_win) {
+    deps += [
+      "../media:rtc_media_base",
+      "../rtc_base:win32",
+      "../rtc_base:win32_socket_init",
+    ]
   }
+  
+  if (is_linux || is_chromeos) {
+    cflags = [ "-Wno-deprecated-declarations" ]
+  }  
 
   include_dirs = [
     "src/protobuf",
     "include",
-  ]
-}
-
-rtc_executable("promise") {
-  sources = [
-    "examples/promise.cc",
-  ]
-
-  deps = [
-    ":crtc",
-  ]
-
-  include_dirs = [
-    "include"
-  ]
-}
-
-rtc_executable("mesh") {
-  sources = [
-    "examples/mesh.cc",
-  ]
-
-  deps = [
-    ":crtc",
-  ]
-
-  include_dirs = [
-    "include"
-  ]
-}
-
-rtc_executable("peerconnection") {
-  sources = [
-    "examples/peerconnection.cc",
-  ]
-
-  deps = [
-    ":crtc",
-  ]
-
-  include_dirs = [
-    "include"
-  ]
-}
-
-rtc_executable("worker") {
-  sources = [
-    "examples/worker.cc",
-  ]
-
-  deps = [
-    ":crtc",
-  ]
-
-  include_dirs = [
-    "include"
-  ]
-}
-
-rtc_executable("source-sink") {
-  sources = [
-    "examples/source-sink.cc",
-  ]
-
-  deps = [
-    ":crtc",
-  ]
-
-  include_dirs = [
-    "include"
-  ]
-}
-
-rtc_executable("ffmpeg") {
-  sources = [
-    "examples/ffmpeg.cc",
-  ]
-
-  deps = [
-    ":crtc",
-  ]
-
-  include_dirs = [
-    "include"
-  ]
-}
-
-group("crtc-examples") {
-  public_deps = [
-    ":promise",
-    ":mesh",
-    ":peerconnection",
-    ":worker",
-    ":source-sink",
-    ":ffmpeg",
   ]
 }
 

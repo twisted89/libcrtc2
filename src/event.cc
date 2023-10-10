@@ -26,7 +26,7 @@
 #include "crtc.h"
 #include "module.h"
 
-#include "webrtc/base/atomicops.h"
+#include <base/atomicops.h>
 
 using namespace crtc;
 
@@ -35,9 +35,9 @@ Let<Event> Event::New() {
 }
 
 Event::Event() {
-  rtc::AtomicOps::Increment(&ModuleInternal::pending_events);
+	base::subtle::NoBarrier_AtomicIncrement(&ModuleInternal::pending_events, 1);
 }
 
 Event::~Event() {
-  rtc::AtomicOps::Decrement(&ModuleInternal::pending_events);
+	base::subtle::NoBarrier_AtomicIncrement(&ModuleInternal::pending_events, -1);
 }

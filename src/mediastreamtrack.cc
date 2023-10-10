@@ -93,14 +93,42 @@ MediaStreamTrackInternal::MediaStreamTrackInternal(MediaStreamTrack::Type kind, 
   _state(_source->state())
 {
   _source->RegisterObserver(this);
+
+  if (kind == MediaStreamTrack::Type::kAudio) {
+      webrtc::AudioTrackInterface* audio = static_cast<webrtc::AudioTrackInterface*>(track);
+      audio->AddSink(this);
+  }
+  else if (kind == MediaStreamTrack::Type::kVideo) {
+      webrtc::VideoTrackInterface* video = static_cast<webrtc::VideoTrackInterface*>(track);
+      rtc::VideoSinkWants wants;
+      video->AddOrUpdateSink(this, wants);
+  }
 }
 
 MediaStreamTrackInternal::MediaStreamTrackInternal(const Let<MediaStreamTrackInternal> &track) : 
-  MediaStreamTrackInternal(track->_kind, track->_track, track->_source) 
+  MediaStreamTrackInternal(track->_kind, track->_track.get(), track->_source.get())
 { }
 
 MediaStreamTrackInternal::~MediaStreamTrackInternal() {
   _source->UnregisterObserver(this);
+}
+
+
+void MediaStreamTrackInternal::OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)
+{
+    //TODO
+}
+
+void MediaStreamTrackInternal::OnFrame(const webrtc::VideoFrame& frame) {
+    //TODO
+}
+
+void MediaStreamTrackInternal::OnDiscardedFrame() {
+    //TODO
+}
+
+void MediaStreamTrackInternal::OnConstraintsChanged(const webrtc::VideoTrackSourceConstraints& constraints) {
+    //TODO
 }
 
 bool MediaStreamTrackInternal::Enabled() const {
@@ -132,7 +160,7 @@ MediaStreamTrack::State MediaStreamTrackInternal::ReadyState() const {
 }
 
 Let<MediaStreamTrack> MediaStreamTrackInternal::Clone() {
-  return Let<MediaStreamTrackInternal>::New(_kind, _track, _source);
+  return Let<MediaStreamTrackInternal>::New(_kind, _track.get(), _source.get());
 }
 
 rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> MediaStreamTrackInternal::GetTrack() const {

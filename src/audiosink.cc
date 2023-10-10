@@ -28,83 +28,80 @@
 
 using namespace crtc;
 
-AudioSinkInternal::AudioSinkInternal(const Let<MediaStreamTrackInternal> &track, const rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track) : 
-  MediaStreamTrackInternal(track),
-  _event(Let<Event>::New()),
-  _audio_track(audio_track)
+AudioSinkInternal::AudioSinkInternal(const Let<MediaStreamTrackInternal>& track) :
+	MediaStreamTrackInternal(track),
+	_event(Let<Event>::New()),
+	_audio_track(static_cast<webrtc::AudioTrackInterface*>(track->GetTrack().get()))
 {
-  _audio_track->AddSink(this);
+	_audio_track->AddSink(this);
+	if (!_audio_track->enabled()) {
+		_audio_track->set_enabled(true);
+	}
 }
 
 AudioSinkInternal::~AudioSinkInternal() {
-  Stop();
+	Stop();
 }
 
-Let<AudioSink> AudioSink::New(const Let<MediaStreamTrack> &mediaStreamTrack) {
-  if (mediaStreamTrack.IsEmpty() || 
-      mediaStreamTrack->Kind() != MediaStreamTrack::kAudio || 
-      mediaStreamTrack->ReadyState() != MediaStreamTrack::kLive) 
-  {
-    return Let<AudioSink>();
-  }
-  
-  Let<MediaStreamTrackInternal> track(mediaStreamTrack->Clone()); 
-  rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> stream_track = track->GetTrack();
-  rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track = static_cast<webrtc::AudioTrackInterface*>(stream_track.get());
-  Let<AudioSinkInternal> self(Let<AudioSinkInternal>::New(track, audio_track));
-  
-  if (!audio_track->enabled()) {
-    audio_track->set_enabled(true);
-  }
+Let<AudioSink> AudioSink::New(const Let<MediaStreamTrack>& mediaStreamTrack) {
+	if (mediaStreamTrack.IsEmpty() ||
+		mediaStreamTrack->Kind() != MediaStreamTrack::kAudio ||
+		mediaStreamTrack->ReadyState() != MediaStreamTrack::kLive)
+	{
+		return Let<AudioSink>();
+	}
 
-  return self;
+	Let<MediaStreamTrackInternal> track(mediaStreamTrack->Clone());
+	Let<AudioSinkInternal> self(Let<AudioSinkInternal>::New(track));
+
+	return self;
 }
 
-bool AudioSinkInternal::Enabled() const { 
-  return MediaStreamTrackInternal::Enabled();
+bool AudioSinkInternal::Enabled() const {
+	return MediaStreamTrackInternal::Enabled();
 }
 
-bool AudioSinkInternal::Muted() const { 
-  return MediaStreamTrackInternal::Muted();
+bool AudioSinkInternal::Muted() const {
+	return MediaStreamTrackInternal::Muted();
 }
 
-bool AudioSinkInternal::Remote() const { 
-  return MediaStreamTrackInternal::Remote();
+bool AudioSinkInternal::Remote() const {
+	return MediaStreamTrackInternal::Remote();
 }
 
-std::string AudioSinkInternal::Id() const { 
-  return MediaStreamTrackInternal::Id();
+std::string AudioSinkInternal::Id() const {
+	return MediaStreamTrackInternal::Id();
 }
 
-MediaStreamTrack::Type AudioSinkInternal::Kind() const { 
-  return MediaStreamTrackInternal::Kind();
+MediaStreamTrack::Type AudioSinkInternal::Kind() const {
+	return MediaStreamTrackInternal::Kind();
 }
 
-MediaStreamTrack::State AudioSinkInternal::ReadyState() const { 
-  return MediaStreamTrackInternal::ReadyState();
+MediaStreamTrack::State AudioSinkInternal::ReadyState() const {
+	return MediaStreamTrackInternal::ReadyState();
 }
 
-Let<MediaStreamTrack> AudioSinkInternal::Clone() { 
-  return MediaStreamTrackInternal::Clone();
+Let<MediaStreamTrack> AudioSinkInternal::Clone() {
+	return MediaStreamTrackInternal::Clone();
 }
 
 bool AudioSinkInternal::IsRunning() const {
-  return (!_event.IsEmpty());
+	return (!_event.IsEmpty());
 }
 
 void AudioSinkInternal::Stop() {
-  if (!_event.IsEmpty()) {
-    _audio_track->RemoveSink(this);
-    _event.Dispose();
-  }
+	if (!_event.IsEmpty()) {
+		_audio_track->RemoveSink(this);
+		_event.Dispose();
+	}
 }
 
 void AudioSinkInternal::OnEnded() {
-  Stop();
+	Stop();
 }
 
 void AudioSinkInternal::OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames) {
-  
+
 }
 
 AudioSink::AudioSink() {
@@ -112,5 +109,5 @@ AudioSink::AudioSink() {
 }
 
 AudioSink::~AudioSink() {
-  
+
 }

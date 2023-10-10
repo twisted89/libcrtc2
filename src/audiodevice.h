@@ -28,144 +28,145 @@
 
 #include "crtc.h"
 #include "worker.h"
-
-#include "webrtc/base/criticalsection.h"
-#include "webrtc/modules/audio_device/include/fake_audio_device.h"
-#include "webrtc/typedefs.h"
+#include "modules/audio_device/include/fake_audio_device.h"
+#include <rtc_base/synchronization/mutex.h>
+#include <rtc_base/thread.h>
+#include "rtc_base/time_utils.h"
+#include "rtc_base/timestamp_aligner.h"
 
 namespace crtc {
-  class AudioDevice : public webrtc::FakeAudioDeviceModule {
-    public:
-      AudioDevice() :
-        _capturing(false),
-        _drainNeeded(false),
-        _clock(RealTimeClock::New(Functor<void()>(this, &AudioDevice::OnTime)))
-      {
-        
-      }
+	class AudioDevice : public webrtc::FakeAudioDeviceModule {
+	public:
+		AudioDevice() :
+			_capturing(false),
+			_drainNeeded(false),
+			_clock(RealTimeClock::New(Functor<void()>(this, &AudioDevice::OnTime)))
+		{
 
-      ~AudioDevice() override {
-        StopRecording();
-        _clock->Stop();
-      }
+		}
 
-      sigslot::signal0<> Drain;
+		~AudioDevice() override {
+			StopRecording();
+			_clock->Stop();
+		}
 
-      inline void Write(const Let<AudioBuffer> &buffer, ErrorCallback callback) {
-        rtc::CritScope cs(&_lock);
+		sigslot::signal0<> Drain;
 
-        if (Recording()) {
-          _queue.push_back(Queue(buffer, callback));
-        } else {
-          callback(Error::New("AudioDevice is not recording.", __FILE__, __LINE__));
-        }
-      }
+		inline void Write(const Let<AudioBuffer>& buffer, ErrorCallback callback) {
+			webrtc::MutexLock lock(&lock_);
 
-      inline int32_t Init() override {
-        _clock->Start(100); // 100 * 10ms = 1000ms 
-        return 0;
-      }
+			if (Recording()) {
+				_queue.push_back(Queue(buffer, callback));
+			}
+			else {
+				callback(Error::New("AudioDevice is not recording.", __FILE__, __LINE__));
+			}
+		}
 
-      inline int32_t RegisterAudioCallback(webrtc::AudioTransport* callback) override {
-        rtc::CritScope cs(&_lock);
-        _callback = callback;
-        return 0;
-      }
+		inline int32_t Init() override {
+			_clock->Start(100); // 100 * 10ms = 1000ms 
+			return 0;
+		}
 
-      inline int32_t StartPlayout() override {
-        return -1;
-      }
+		inline int32_t RegisterAudioCallback(webrtc::AudioTransport* callback) override {
+			webrtc::MutexLock lock(&lock_);
+			_callback = callback;
+			return 0;
+		}
 
-      inline int32_t StopPlayout() override {
-        return 0;
-      }
+		inline int32_t StartPlayout() override {
+			return -1;
+		}
 
-      inline int32_t StartRecording() override {
-        rtc::CritScope cs(&_lock);
-        _capturing = true;
-        return 0;
-      }
+		inline int32_t StopPlayout() override {
+			return 0;
+		}
 
-      inline int32_t StopRecording() override {
-        rtc::CritScope cs(&_lock);
-        _capturing = false;
-        return 0;
-      }
+		inline int32_t StartRecording() override {
+			webrtc::MutexLock lock(&lock_);
+			_capturing = true;
+			return 0;
+		}
 
-      inline bool Playing() const override {
-        return false;
-      }
+		inline int32_t StopRecording() override {
+			_capturing = false;
+			return 0;
+		}
 
-      inline bool Recording() const override {
-        rtc::CritScope cs(&_lock);
-        return _capturing;
-      }
+		inline bool Playing() const override {
+			return false;
+		}
 
-    private:
-      class Queue {
-        public:
-          explicit Queue() 
-          { }
+		inline bool Recording() const override {
+			return _capturing;
+		}
 
-          Queue(const Let<AudioBuffer> &audio_buffer, const ErrorCallback &errorCallback) : 
-            buffer(audio_buffer),
-            callback(errorCallback),
-            timestamp(rtc::TimeNanos())
-          { }
+	private:
+		class Queue {
+		public:
+			explicit Queue()
+			{ }
 
-          Let<AudioBuffer> buffer;
-          ErrorCallback callback;
-          int64_t timestamp;
-      };
+			Queue(const Let<AudioBuffer>& audio_buffer, const ErrorCallback& errorCallback) :
+				buffer(audio_buffer),
+				callback(errorCallback),
+				timestamp(rtc::TimeNanos())
+			{ }
 
-      inline void OnTime() {
-        if (_capturing) {
-          Queue pending;
+			Let<AudioBuffer> buffer;
+			ErrorCallback callback;
+			int64_t timestamp;
+		};
 
-          {
-            rtc::CritScope cs(&_lock);
+		inline void OnTime() {
+			if (_capturing) {
+				Queue pending;
 
-            if (!_queue.empty()) {
-              pending = _queue.front();
-              _queue.pop_front();
-            } else {
-              if (_drainNeeded) {
-                _drainNeeded = false;
-                Drain();
-              }
+				{
+					webrtc::MutexLock lock(&lock_);
 
-              return;
-            } 
-          }
+					if (!_queue.empty()) {
+						pending = _queue.front();
+						_queue.pop_front();
+					}
+					else {
+						if (_drainNeeded) {
+							_drainNeeded = false;
+							Drain();
+						}
 
-          uint32_t new_mic_level = 0;
+						return;
+					}
+				}
 
-          {
-            rtc::CritScope cs(&_lock);
-            _callback->RecordedDataIsAvailable(pending.buffer->Data(), pending.buffer->ByteLength(), pending.buffer->BitsPerSample() / 8, pending.buffer->Channels(), pending.buffer->SampleRate(), 0, 0, 0, false, new_mic_level);
-          }
-          
-          pending.callback(Let<Error>());
+				uint32_t new_mic_level = 0;
 
-          {
-            rtc::CritScope cs(&_lock);
+				{
+					webrtc::MutexLock lock(&lock_);
+					_callback->RecordedDataIsAvailable(pending.buffer->Data(), pending.buffer->ByteLength(), pending.buffer->BitsPerSample() / 8, pending.buffer->Channels(), pending.buffer->SampleRate(), 0, 0, 0, false, new_mic_level);
+				}
 
-            if (!_queue.empty()) {
-              _drainNeeded = true;
-            }
-          }
-        }
-      }
+				pending.callback(Let<Error>());
 
-      rtc::CriticalSection _lock;
+				{
+					webrtc::MutexLock lock(&lock_);
 
-      bool _capturing;
-      bool _drainNeeded;
-      
-      std::list<Queue> _queue GUARDED_BY(_lock);
-      webrtc::AudioTransport* _callback GUARDED_BY(_lock);
-      Let<RealTimeClock> _clock;
-  };
-};
+					if (!_queue.empty()) {
+						_drainNeeded = true;
+					}
+				}
+			}
+		}
+
+		webrtc::Mutex lock_;
+
+		bool _capturing;
+		bool _drainNeeded;
+
+		std::list<Queue> _queue RTC_GUARDED_BY(lock_);
+		webrtc::AudioTransport* _callback RTC_GUARDED_BY(lock_);
+		Let<RealTimeClock> _clock;
+	};
+}
 
 #endif

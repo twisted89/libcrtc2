@@ -29,138 +29,129 @@
 #include "crtc.h"
 #include "arraybuffer.h"
 
-#include "webrtc/base/refcount.h"
-#include "webrtc/common_video/include/video_frame_buffer.h"
+#include "rtc_base/ref_count.h"
+#include "common_video/include/video_frame_buffer.h"
 
 namespace crtc {
-  class ImageBufferInternal : public ImageBuffer, public ArrayBufferInternal {
-      friend class Let<ImageBufferInternal>;
+	class ImageBufferInternal : public ImageBuffer, public ArrayBufferInternal {
+		friend class Let<ImageBufferInternal>;
 
-    public:
-      static Let<ImageBuffer> New(const Let<ArrayBuffer> &buffer, int width, int height);
-      static Let<ImageBuffer> New(int width = 0, int height = 0);
+	public:
+		static Let<ImageBuffer> New(const Let<ArrayBuffer>& buffer, int width, int height);
+		static Let<ImageBuffer> New(int width = 0, int height = 0);
 
-      int Width() const override;
-      int Height() const override;
+		int Width() const override;
+		int Height() const override;
 
-      const uint8_t* DataY() const override;
-      const uint8_t* DataU() const override;
-      const uint8_t* DataV() const override;
+		const uint8_t* DataY() const override;
+		const uint8_t* DataU() const override;
+		const uint8_t* DataV() const override;
 
-      int StrideY() const override;
-      int StrideU() const override;
-      int StrideV() const override;
+		int StrideY() const override;
+		int StrideU() const override;
+		int StrideV() const override;
 
-      size_t ByteLength() const override;
+		size_t ByteLength() const override;
 
-      Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
+		Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
 
-      uint8_t *Data() override;
-      const uint8_t *Data() const override;
+		uint8_t* Data() override;
+		const uint8_t* Data() const override;
 
-      std::string ToString() const override;
+		std::string ToString() const override;
 
-    protected:
-      explicit ImageBufferInternal(const Let<ArrayBuffer> &buffer, int width, int height);
-      ImageBufferInternal(int width = 0, int height = 0);
-      ~ImageBufferInternal() override;
+	protected:
+		explicit ImageBufferInternal(const Let<ArrayBuffer>& buffer, int width, int height);
+		ImageBufferInternal(int width = 0, int height = 0);
+		~ImageBufferInternal() override;
 
-      int _width;
-      int _height;
-      
-      const uint8_t* _y;
-      const uint8_t* _u;
-      const uint8_t* _v;
-  };
+		int _width;
+		int _height;
 
-  class WrapImageBuffer : public webrtc::VideoFrameBuffer {
-    public:
-      static rtc::scoped_refptr<webrtc::VideoFrameBuffer> New(const Let<ImageBuffer> &source);
+		const uint8_t* _y;
+		const uint8_t* _u;
+		const uint8_t* _v;
+	};
 
-      int width() const override;
-      int height() const override;
+	class WrapImageBuffer : public webrtc::VideoFrameBuffer {
+	public:
+		static rtc::scoped_refptr<webrtc::VideoFrameBuffer> New(const Let<ImageBuffer>& source);
 
-      const uint8_t* DataY() const override;
-      const uint8_t* DataU() const override;
-      const uint8_t* DataV() const override;
+		virtual Type type() const override;
 
-      int StrideY() const override;
-      int StrideU() const override;
-      int StrideV() const override;
+		int width() const override;
+		int height() const override;
 
-      void* native_handle() const override;
-      rtc::scoped_refptr<webrtc::VideoFrameBuffer> NativeToI420Buffer() override;
+		const webrtc::I420BufferInterface* GetI420() const override;
+		rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
 
-    protected:
-      explicit WrapImageBuffer(const Let<ImageBuffer> &source);
-      ~WrapImageBuffer() override;
+	protected:
+		explicit WrapImageBuffer(const Let<ImageBuffer>& source);
+		~WrapImageBuffer() override;
 
-      Let<ImageBuffer> _source;
-  };
+		Let<ImageBuffer> _source;
+	};
 
-  class WrapVideoFrameBuffer : public ImageBuffer {
-      friend class Let<WrapVideoFrameBuffer>;
+	class WrapVideoFrameBuffer : public ImageBuffer {
+		friend class Let<WrapVideoFrameBuffer>;
 
-    public:
-      static Let<ImageBuffer> New(const rtc::scoped_refptr<webrtc::VideoFrameBuffer> &vfb);
+	public:
+		static Let<ImageBuffer> New(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& vfb);
 
-      int Width() const override;
-      int Height() const override;
+		int Width() const override;
+		int Height() const override;
 
-      const uint8_t* DataY() const override;
-      const uint8_t* DataU() const override;
-      const uint8_t* DataV() const override;
+		virtual const webrtc::I420BufferInterface* GetI420() const;
+		virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420();
 
-      int StrideY() const override;
-      int StrideU() const override;
-      int StrideV() const override;
+		size_t ByteLength() const override;
 
-      size_t ByteLength() const override;
+		Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
 
-      Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
+		uint8_t* Data() override;
+		const uint8_t* Data() const override;
 
-      uint8_t *Data() override;
-      const uint8_t *Data() const override;
+		std::string ToString() const override;
+	protected:
+		explicit WrapVideoFrameBuffer(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& source);
+		~WrapVideoFrameBuffer() override;
 
-      std::string ToString() const override;
-    protected:
-      explicit WrapVideoFrameBuffer(const rtc::scoped_refptr<webrtc::VideoFrameBuffer> &source);
-      ~WrapVideoFrameBuffer() override;
+		rtc::scoped_refptr<webrtc::VideoFrameBuffer> _vfb;
+	};
 
-      rtc::scoped_refptr<webrtc::VideoFrameBuffer> _vfb;
-  };
+	class WrapBufferToVideoFrameBuffer : public webrtc::PlanarYuv8Buffer {
+	public:
+		static rtc::scoped_refptr<webrtc::VideoFrameBuffer> New(const Let<ArrayBuffer>& source, int width, int height);
 
-  class WrapBufferToVideoFrameBuffer : public webrtc::VideoFrameBuffer {
-    public:
-      static rtc::scoped_refptr<webrtc::VideoFrameBuffer> New(const Let<ArrayBuffer> &source, int width, int height);
+		int width() const override;
+		int height() const override;
 
-      int width() const override;
-      int height() const override;
+		const uint8_t* DataY() const override;
+		const uint8_t* DataU() const override;
+		const uint8_t* DataV() const override;
 
-      const uint8_t* DataY() const override;
-      const uint8_t* DataU() const override;
-      const uint8_t* DataV() const override;
+		int StrideY() const override;
+		int StrideU() const override;
+		int StrideV() const override;
 
-      int StrideY() const override;
-      int StrideU() const override;
-      int StrideV() const override;
+		//void* native_handle() const override;
+		//rtc::scoped_refptr<webrtc::VideoFrameBuffer> NativeToI420Buffer() override;
+		virtual const webrtc::I420BufferInterface* GetI420() const override;
+		virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
 
-      void* native_handle() const override;
-      rtc::scoped_refptr<webrtc::VideoFrameBuffer> NativeToI420Buffer() override;
+	protected:
+		explicit WrapBufferToVideoFrameBuffer(const Let<ArrayBuffer>& source, int width, int height);
+		~WrapBufferToVideoFrameBuffer() override;
 
-    protected:
-      explicit WrapBufferToVideoFrameBuffer(const Let<ArrayBuffer> &source, int width, int height);
-      ~WrapBufferToVideoFrameBuffer() override;
+		Let<ArrayBuffer> _source;
 
-      Let<ArrayBuffer> _source;
-      
-      int _width;
-      int _height;
+		int _width;
+		int _height;
 
-      const uint8_t* _y;
-      const uint8_t* _u;
-      const uint8_t* _v;
-  };
-};
+		const uint8_t* _y;
+		const uint8_t* _u;
+		const uint8_t* _v;
+	};
+}
 
 #endif

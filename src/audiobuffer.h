@@ -29,35 +29,35 @@
 #include "crtc.h"
 #include "arraybuffer.h"
 
-namespace crtc { 
-  class AudioBufferInternal : public AudioBuffer, public ArrayBufferInternal {
-      friend class Let<AudioBufferInternal>;
-      friend class AudioBuffer;
-      
-    public:
-      size_t ByteLength() const override;
+namespace crtc {
+	class AudioBufferInternal : public AudioBuffer, public ArrayBufferInternal {
+		friend class Let<AudioBufferInternal>;
+		friend class AudioBuffer;
 
-      Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
+	public:
+		size_t ByteLength() const override;
 
-      uint8_t *Data() override;
-      const uint8_t *Data() const override;
+		Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
 
-      std::string ToString() const override;
+		uint8_t* Data() override;
+		const uint8_t* Data() const override;
 
-      int Channels() const override;
-      int SampleRate() const override;
-      int BitsPerSample() const override;
-      int Frames() const override;
+		std::string ToString() const override;
 
-    protected:
-      explicit AudioBufferInternal(const Let<ArrayBuffer> &buffer, int channels, int sampleRate, int bitsPerSample, int frames);
-      ~AudioBufferInternal() override;
+		int Channels() const override;
+		int SampleRate() const override;
+		int BitsPerSample() const override;
+		int Frames() const override;
 
-      int _channels;
-      int _samplerate;
-      int _bitspersample;
-      int _frames;
-  };
-};
+	protected:
+		explicit AudioBufferInternal(const Let<ArrayBuffer>& buffer, int channels, int sampleRate, int bitsPerSample, int frames);
+		~AudioBufferInternal() override;
+
+		int _channels;
+		int _samplerate;
+		int _bitspersample;
+		int _frames;
+	};
+}
 
 #endif

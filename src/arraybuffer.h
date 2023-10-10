@@ -28,36 +28,36 @@
 #define CRTC_ARRAYBUFFER_H
 
 #include "crtc.h"
-#include "webrtc/base/copyonwritebuffer.h"
+#include "rtc_base/copy_on_write_buffer.h"
 
 namespace crtc {
-  class ArrayBufferInternal : public ArrayBuffer {
-      friend class Let<ArrayBufferInternal>;
+    class ArrayBufferInternal : public ArrayBuffer {
+        friend class Let<ArrayBufferInternal>;
 
     public:
-      size_t ByteLength() const override;
+        size_t ByteLength() const override;
 
-      Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
+        Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
 
-      uint8_t *Data() override;
-      const uint8_t *Data() const override;
+        uint8_t* Data() override;
+        const uint8_t* Data() const override;
 
-      std::string ToString() const override;
+        std::string ToString() const override;
 
     private:
-      bool _alloc;
- 
+        bool _alloc;
+
     protected:
-      explicit ArrayBufferInternal(const uint8_t *data = nullptr, size_t byteLength = 0);
-      ArrayBufferInternal(const Let<ArrayBuffer> &buffer);
-      
-      ~ArrayBufferInternal() override;
+        explicit ArrayBufferInternal(const uint8_t* data = nullptr, size_t byteLength = 0);
+        ArrayBufferInternal(const Let<ArrayBuffer>& buffer);
 
-      void Init(const uint8_t *data, size_t byteLength);
+        ~ArrayBufferInternal() override;
 
-      uint8_t* _data;
-      size_t _byteLength;
-  };
-};
+        void Init(const uint8_t* data, size_t byteLength);
+
+        uint8_t* _data;
+        size_t _byteLength;
+    };
+}
 
 #endif

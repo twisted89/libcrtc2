@@ -31,19 +31,21 @@
 #include "mediastream.h"
 #include "mediastreamtrack.h"
 
-#include "webrtc/api/peerconnectioninterface.h"
-#include "webrtc/modules/audio_device/include/audio_device.h"
-#include "webrtc/media/engine/webrtcvideocapturerfactory.h"
-#include "webrtc/modules/video_capture/video_capture_factory.h"
-
+#include <api/peer_connection_interface.h>
+#include <api/create_peerconnection_factory.h>
+#include <modules/audio_device/include/audio_device.h>
+//#include <media/engine/webrtcvideocapturerfactory.h>
+#include <modules/video_capture/video_capture_factory.h>
+#include "third_party/blink/public/common/common_export.h"
+#include "third_party/blink/public/common/mediastream/media_devices.h"
 /// \sa https://developer.mozilla.org/en-US/docs/Web/API/LongRange
 
-/*
+
 typedef struct {
   int max;
   int min;
 } LongRange;
-*/
+
 
 /// \sa https://developer.mozilla.org/en-US/docs/Web/API/ConstrainLong
 
@@ -112,7 +114,7 @@ typedef struct {
 
 /// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackSettings
 
-/*
+
 typedef struct {
   enum FacingMode {
     kUser,
@@ -176,7 +178,7 @@ class CRTC_EXPORT MediaDevices {
   public:
     /// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/enumerateDevices
 
-    static Let<Promise<MediaDeviceInfos>> EnumerateDevices();
+    static std::vector<blink::WebMediaDeviceInfo> EnumerateDevices();
 
     /// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getSupportedConstraints
 
@@ -184,10 +186,10 @@ class CRTC_EXPORT MediaDevices {
 
     /// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
 
-    static Let<Promise<Let<MediaStream>>> GetUserMedia();
-    static Let<Promise<Let<MediaStream>>> GetUserMedia(const MediaStreamConstraints &constraints);
+    static crtc::Let<crtc::MediaStream> GetUserMedia();
+    static crtc::Let<crtc::MediaStream> GetUserMedia(const MediaStreamConstraints &constraints);
 };
-*/
+
 
 class MediaDevicesInternal {
   public:

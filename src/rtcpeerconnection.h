@@ -29,241 +29,248 @@
 
 #include "crtc.h"
 
-#include "webrtc/api/peerconnectioninterface.h"
-#include "webrtc/media/engine/webrtcvideodecoderfactory.h"
-#include "webrtc/media/engine/webrtcvideoencoderfactory.h"
-#include "webrtc/modules/audio_device/include/audio_device.h"
+#include <api/peer_connection_interface.h>
+#include <api/create_peerconnection_factory.h>
+//#include <media/engine/webrtcvideodecoderfactory.h>
+//#include <media/engine/webrtcvideoencoderfactory.h>
+#include <media/engine/webrtc_video_engine.h>
+#include <modules/audio_device/include/audio_device.h>
 
 namespace crtc {
-  class RTCPeerConnectionInternal;
+	class RTCPeerConnectionInternal;
 
-  class RTCPeerConnectionInternal : public RTCPeerConnection, public webrtc::PeerConnectionObserver {
-      friend class Let<RTCPeerConnectionInternal>;
-      friend class RTCPeerConnectionObserver;
+	class RTCPeerConnectionInternal : public RTCPeerConnection, public webrtc::PeerConnectionObserver {
+		friend class Let<RTCPeerConnectionInternal>;
+		friend class RTCPeerConnectionObserver;
 
-    public:
-      static void Init();
-      static void Dispose();
-      
-      static std::unique_ptr<rtc::Thread> network_thread;
-      static std::unique_ptr<rtc::Thread> worker_thread;
-      static rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device;
-      static rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
+	public:
+		static void Init();
+		static void Dispose();
 
-      Let<RTCDataChannel> CreateDataChannel(const std::string &label, const RTCDataChannelInit &options = RTCDataChannelInit()) override;
-      Let<Promise<void>> AddIceCandidate(const RTCPeerConnection::RTCIceCandidate &candidate) override;
-      void AddStream(const Let<MediaStream> &stream) override;
-      // Let<RTCPeerConnection::RTCRtpSender> AddTrack(const Let<MediaStreamTrack> &track, const Let<MediaStream> &stream) override;
-      Let<Promise<RTCPeerConnection::RTCSessionDescription>> CreateAnswer(const RTCPeerConnection::RTCAnswerOptions &options) override;
-      Let<Promise<RTCPeerConnection::RTCSessionDescription>> CreateOffer(const RTCPeerConnection::RTCOfferOptions &options) override;
-      // Let<Promise<RTCPeerConnection::RTCCertificate>> GenerateCertificate() override;
-      MediaStreams GetLocalStreams() override;
-      MediaStreams GetRemoteStreams() override;
-      void RemoveStream(const Let<MediaStream> &stream) override;
-      // void RemoveTrack(const Let<RTCPeerConnection::RTCRtpSender> &sender) override;
-      void SetConfiguration(const RTCPeerConnection::RTCConfiguration &config) override;
-      Let<Promise<void>> SetLocalDescription(const RTCPeerConnection::RTCSessionDescription &sdp) override;
-      Let<Promise<void>> SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription &sdp) override;
-      void Close() override;
+		static std::unique_ptr<rtc::Thread> network_thread;
+		static std::unique_ptr<rtc::Thread> worker_thread;
+		static rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device;
+		static rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
 
-      RTCPeerConnection::RTCSessionDescription CurrentLocalDescription() override;
-      RTCPeerConnection::RTCSessionDescription CurrentRemoteDescription() override;
-      RTCPeerConnection::RTCSessionDescription LocalDescription() override;
-      RTCPeerConnection::RTCSessionDescription PendingLocalDescription() override;
-      RTCPeerConnection::RTCSessionDescription PendingRemoteDescription() override;
-      RTCPeerConnection::RTCSessionDescription RemoteDescription() override; 
+		Let<RTCDataChannel> CreateDataChannel(const std::string& label, const RTCDataChannelInit& options = RTCDataChannelInit()) override;
+		Let<Promise<void>> AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) override;
+		void AddStream(const Let<MediaStream>& stream) override;
+		// Let<RTCPeerConnection::RTCRtpSender> AddTrack(const Let<MediaStreamTrack> &track, const Let<MediaStream> &stream) override;
+		Let<Promise<RTCPeerConnection::RTCSessionDescription>> CreateAnswer(const RTCPeerConnection::RTCAnswerOptions& options) override;
+		Let<Promise<RTCPeerConnection::RTCSessionDescription>> CreateOffer(const RTCPeerConnection::RTCOfferOptions& options) override;
+		// Let<Promise<RTCPeerConnection::RTCCertificate>> GenerateCertificate() override;
+		MediaStreams GetLocalStreams() override;
+		MediaStreams GetRemoteStreams() override;
+		void RemoveStream(const Let<MediaStream>& stream) override;
+		// void RemoveTrack(const Let<RTCPeerConnection::RTCRtpSender> &sender) override;
+		void SetConfiguration(const RTCPeerConnection::RTCConfiguration& config) override;
+		Let<Promise<void>> SetLocalDescription(const RTCPeerConnection::RTCSessionDescription& sdp) override;
+		Let<Promise<void>> SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription& sdp) override;
+		void Close() override;
 
-      RTCPeerConnection::RTCIceConnectionState IceConnectionState() override;
-      RTCPeerConnection::RTCIceGatheringState IceGatheringState() override;
-      RTCPeerConnection::RTCSignalingState SignalingState() override;
+		RTCPeerConnection::RTCSessionDescription CurrentLocalDescription() override;
+		RTCPeerConnection::RTCSessionDescription CurrentRemoteDescription() override;
+		RTCPeerConnection::RTCSessionDescription LocalDescription() override;
+		RTCPeerConnection::RTCSessionDescription PendingLocalDescription() override;
+		RTCPeerConnection::RTCSessionDescription PendingRemoteDescription() override;
+		RTCPeerConnection::RTCSessionDescription RemoteDescription() override;
 
-    private:
-      inline static Let<Error> SDP2SDP(const webrtc::SessionDescriptionInterface* desc = nullptr, RTCPeerConnection::RTCSessionDescription *sdp = nullptr) {
-        if (desc && sdp) {
-          if (desc->type().compare(webrtc::SessionDescriptionInterface::kOffer) == 0) {
-            sdp->type = RTCPeerConnection::RTCSessionDescription::kOffer;
-          } else if (desc->type().compare(webrtc::SessionDescriptionInterface::kAnswer) == 0) {
-            sdp->type = RTCPeerConnection::RTCSessionDescription::kAnswer;
-          } else {
-            sdp->type = RTCPeerConnection::RTCSessionDescription::kPranswer;
-          }
-          
-          if (desc->ToString(&sdp->sdp)) {
-            return Let<Error>();
-          }
+		RTCPeerConnection::RTCIceConnectionState IceConnectionState() override;
+		RTCPeerConnection::RTCIceGatheringState IceGatheringState() override;
+		RTCPeerConnection::RTCSignalingState SignalingState() override;
 
-          return Error::New("Unable to create SessionDescription", __FILE__, __LINE__);
-        }
+	private:
+		inline static Let<Error> SDP2SDP(const webrtc::SessionDescriptionInterface* desc = nullptr, RTCPeerConnection::RTCSessionDescription* sdp = nullptr) {
+			if (desc && sdp) {
+				if (desc->type().compare(webrtc::SessionDescriptionInterface::kOffer) == 0) {
+					sdp->type = RTCPeerConnection::RTCSessionDescription::kOffer;
+				}
+				else if (desc->type().compare(webrtc::SessionDescriptionInterface::kAnswer) == 0) {
+					sdp->type = RTCPeerConnection::RTCSessionDescription::kAnswer;
+				}
+				else {
+					sdp->type = RTCPeerConnection::RTCSessionDescription::kPranswer;
+				}
 
-        return Error::New("Invalid SessionDescriptionInterface", __FILE__, __LINE__);
-      }
+				if (desc->ToString(&sdp->sdp)) {
+					return Let<Error>();
+				}
 
-      inline static Let<Error> SDP2SDP(const RTCPeerConnection::RTCSessionDescription &sdp, webrtc::SessionDescriptionInterface **desc = nullptr) {
-        std::string type;
-        webrtc::SdpParseError error;
+				return Error::New("Unable to create SessionDescription", __FILE__, __LINE__);
+			}
 
-        if (desc) {
-          switch (sdp.type) {
-            case RTCPeerConnection::RTCSessionDescription::kAnswer:
-              type = webrtc::SessionDescriptionInterface::kAnswer;
-              break;
-            case RTCPeerConnection::RTCSessionDescription::kOffer:
-              type = webrtc::SessionDescriptionInterface::kOffer;
-              break;
-            case RTCPeerConnection::RTCSessionDescription::kPranswer:
-              type = webrtc::SessionDescriptionInterface::kPrAnswer;
-              break;
-            case RTCPeerConnection::RTCSessionDescription::kRollback:
-              break; 
-          }
+			return Error::New("Invalid SessionDescriptionInterface", __FILE__, __LINE__);
+		}
 
-          *desc = webrtc::CreateSessionDescription(type, sdp.sdp, &error);
+		inline static Let<Error> SDP2SDP(const RTCPeerConnection::RTCSessionDescription& sdp, webrtc::SessionDescriptionInterface** desc = nullptr) {
+			std::string type;
+			webrtc::SdpParseError error;
 
-          if (*desc) {
-            return Let<Error>();
-          } else {
-            return Error::New(error.description, __FILE__, __LINE__);
-          }
-        } else {
-          return Error::New("Invalid SessionDescriptionInterface", __FILE__, __LINE__);
-        }            
-      }
+			if (desc) {
+				switch (sdp.type) {
+				case RTCPeerConnection::RTCSessionDescription::kAnswer:
+					type = webrtc::SessionDescriptionInterface::kAnswer;
+					break;
+				case RTCPeerConnection::RTCSessionDescription::kOffer:
+					type = webrtc::SessionDescriptionInterface::kOffer;
+					break;
+				case RTCPeerConnection::RTCSessionDescription::kPranswer:
+					type = webrtc::SessionDescriptionInterface::kPrAnswer;
+					break;
+				case RTCPeerConnection::RTCSessionDescription::kRollback:
+					break;
+				}
 
-      inline static Let<Error> ParseConfiguration(
-        const RTCPeerConnection::RTCConfiguration &config,
-        webrtc::PeerConnectionInterface::RTCConfiguration *cfg = nullptr) 
-      {
-        if (cfg) {
-          // cfg->certificates = config.certificates;
+				*desc = webrtc::CreateSessionDescription(type, sdp.sdp, &error);
 
-          cfg->ice_candidate_pool_size = config.iceCandidatePoolSize;
-          
-          switch (config.iceTransportPolicy) {
-            case RTCPeerConnection::kRelay:
-              cfg->type = webrtc::PeerConnectionInterface::kRelay;
-              break;
-            case RTCPeerConnection::kPublic:
-              cfg->type = webrtc::PeerConnectionInterface::kNoHost;
-              break;
-            case RTCPeerConnection::kAll:
-              cfg->type = webrtc::PeerConnectionInterface::kAll;
-              break;
-          }
+				if (*desc) {
+					return Let<Error>();
+				}
+				else {
+					return Error::New(error.description, __FILE__, __LINE__);
+				}
+			}
+			else {
+				return Error::New("Invalid SessionDescriptionInterface", __FILE__, __LINE__);
+			}
+		}
 
-          switch (config.rtcpMuxPolicy) {
-            case RTCPeerConnection::kNegotiate:
-              cfg->rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyNegotiate;
-              break;
-            case RTCPeerConnection::kRequire:
-              cfg->rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
-              break;
-          }
+		inline static Let<Error> ParseConfiguration(
+			const RTCPeerConnection::RTCConfiguration& config,
+			webrtc::PeerConnectionInterface::RTCConfiguration* cfg = nullptr)
+		{
+			if (cfg) {
+				// cfg->certificates = config.certificates;
 
-          switch (config.bundlePolicy) {
-            case RTCPeerConnection::kBalanced:
-              cfg->bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyBalanced;
-              break;
-            case RTCPeerConnection::kMaxBundle:
-              cfg->bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
-              break;
-            case RTCPeerConnection::kMaxCompat:
-              cfg->bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxCompat;
-              break;
-          }
+				cfg->ice_candidate_pool_size = config.iceCandidatePoolSize;
 
-          for (const auto &iceserver: config.iceServers) {
-            webrtc::PeerConnectionInterface::IceServer server;
+				switch (config.iceTransportPolicy) {
+				case RTCPeerConnection::kRelay:
+					cfg->type = webrtc::PeerConnectionInterface::kRelay;
+					break;
+				case RTCPeerConnection::kPublic:
+					cfg->type = webrtc::PeerConnectionInterface::kNoHost;
+					break;
+				case RTCPeerConnection::kAll:
+					cfg->type = webrtc::PeerConnectionInterface::kAll;
+					break;
+				}
 
-            server.urls = iceserver.urls;
-            server.username = iceserver.username;
-            server.password = iceserver.credential;
+				switch (config.rtcpMuxPolicy) {
+				case RTCPeerConnection::kNegotiate:
+					cfg->rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyNegotiate;
+					break;
+				case RTCPeerConnection::kRequire:
+					cfg->rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
+					break;
+				}
 
-            cfg->servers.push_back(server);
-          }
+				switch (config.bundlePolicy) {
+				case RTCPeerConnection::kBalanced:
+					cfg->bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyBalanced;
+					break;
+				case RTCPeerConnection::kMaxBundle:
+					cfg->bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
+					break;
+				case RTCPeerConnection::kMaxCompat:
+					cfg->bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxCompat;
+					break;
+				}
 
-          return Let<Error>();
-        }
+				for (const auto& iceserver : config.iceServers) {
+					webrtc::PeerConnectionInterface::IceServer server;
 
-        return Error::New("Invalid RTCConfiguration", __FILE__, __LINE__);
-      }
+					server.urls = iceserver.urls;
+					server.username = iceserver.username;
+					server.password = iceserver.credential;
 
-      class CreateOfferAnswerObserver : public webrtc::CreateSessionDescriptionObserver {
-        public:
-          CreateOfferAnswerObserver(const Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback &resolve,
-                                    const Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback &reject) :
-            _resolve(resolve),
-            _reject(reject)
-          { }
+					cfg->servers.push_back(server);
+				}
 
-          ~CreateOfferAnswerObserver() override { }
+				return Let<Error>();
+			}
 
-        private:
-          void OnSuccess(webrtc::SessionDescriptionInterface* desc) override {
-            RTCPeerConnection::RTCSessionDescription sdp;
+			return Error::New("Invalid RTCConfiguration", __FILE__, __LINE__);
+		}
 
-            Let<Error> error = SDP2SDP(desc, &sdp);
+		class CreateOfferAnswerObserver : public webrtc::CreateSessionDescriptionObserver {
+		public:
+			CreateOfferAnswerObserver(const Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback& resolve,
+				const Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback& reject) :
+				_resolve(resolve),
+				_reject(reject)
+			{ }
 
-            if (error.IsEmpty()) {
-              _resolve(sdp);
-            } else {
-              _reject(error);
-            }
-          }
+			~CreateOfferAnswerObserver() override { }
 
-          void OnFailure(const std::string& error) override {
-            _reject(Error::New(error, __FILE__, __LINE__));
-          }
+		private:
+			void OnSuccess(webrtc::SessionDescriptionInterface* desc) override {
+				RTCPeerConnection::RTCSessionDescription sdp;
 
-          Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback _resolve;
-          Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback _reject;
-      };
+				Let<Error> error = SDP2SDP(desc, &sdp);
 
-      class SetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver {
-        public:
-          SetSessionDescriptionObserver(const Promise<void>::FullFilledCallback &resolve,
-                                        const Promise<void>::RejectedCallback &reject) :
-            _resolve(resolve),
-            _reject(reject)
-          { }
+				if (error.IsEmpty()) {
+					_resolve(sdp);
+				}
+				else {
+					_reject(error);
+				}
+			}
 
-          ~SetSessionDescriptionObserver() override { }
+			void OnFailure(webrtc::RTCError error) override {
+				_reject(Error::New(error.message(), __FILE__, __LINE__));
+			}
 
-        private:
-          void OnSuccess() override {
-            _resolve();
-          }
+			Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback _resolve;
+			Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback _reject;
+		};
 
-          void OnFailure(const std::string& error) override {
-            _reject(Error::New(error, __FILE__, __LINE__));
-          }
+		class SetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver {
+		public:
+			SetSessionDescriptionObserver(const Promise<void>::FullFilledCallback& resolve,
+				const Promise<void>::RejectedCallback& reject) :
+				_resolve(resolve),
+				_reject(reject)
+			{ }
 
-          Promise<void>::FullFilledCallback _resolve;
-          Promise<void>::RejectedCallback _reject;
-      };
+			~SetSessionDescriptionObserver() override { }
 
-      void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
-      void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override;
-      //void OnAddStream(webrtc::MediaStreamInterface* stream) override;
-      void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override;
-      //void OnRemoveStream(webrtc::MediaStreamInterface* stream) override;
-      void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) override;
-      //void OnDataChannel(webrtc::DataChannelInterface* data_channel) override;
-      void OnRenegotiationNeeded() override;
-      void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
-      void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
-      void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
-      void OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates) override;
-      void OnIceConnectionReceivingChange(bool receiving) override; 
+		private:
+			void OnSuccess() override {
+				_resolve();
+			}
 
-    protected:
-      explicit RTCPeerConnectionInternal(const RTCConfiguration &config = RTCConfiguration());
-      ~RTCPeerConnectionInternal() override;
+			void OnFailure(webrtc::RTCError error) override {
+				_reject(Error::New(error.message(), __FILE__, __LINE__));
+			}
 
-      rtc::scoped_refptr<webrtc::PeerConnectionInterface> _socket;
-      rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> _factory;
-      Let<Event> _event;
-      std::vector<Callback> _pending_candidates;
-  };
-};
+			Promise<void>::FullFilledCallback _resolve;
+			Promise<void>::RejectedCallback _reject;
+		};
+
+		void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
+		void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override;
+		//void OnAddStream(webrtc::MediaStreamInterface* stream) override;
+		void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override;
+		//void OnRemoveStream(webrtc::MediaStreamInterface* stream) override;
+		void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) override;
+		//void OnDataChannel(webrtc::DataChannelInterface* data_channel) override;
+		void OnRenegotiationNeeded() override;
+		void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
+		void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
+		void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
+		void OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates) override;
+		void OnIceConnectionReceivingChange(bool receiving) override;
+
+	protected:
+		explicit RTCPeerConnectionInternal(const RTCConfiguration& config = RTCConfiguration());
+		~RTCPeerConnectionInternal() override;
+
+		rtc::scoped_refptr<webrtc::PeerConnectionInterface> _socket;
+		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> _factory;
+		Let<Event> _event;
+		std::vector<Callback> _pending_candidates;
+	};
+}
 
 #endif
