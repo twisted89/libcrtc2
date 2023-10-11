@@ -396,17 +396,6 @@ namespace crtc {
 
 	typedef Functor<void()> Callback;
 
-	class CRTC_EXPORT Worker {
-		Worker(const Worker&) = delete;
-		Worker& operator=(const Worker&) = delete;
-	public:
-		static std::shared_ptr<Worker> New(const Callback& runnable = Callback());
-		static Worker* This();
-	protected:
-		explicit Worker() { }
-		~Worker() { }
-	};
-
 	class CRTC_EXPORT RealTimeClock : virtual public Reference {
 		RealTimeClock(const RealTimeClock&) = delete;
 		RealTimeClock& operator=(const RealTimeClock&) = delete;
@@ -426,7 +415,7 @@ namespace crtc {
 		Async(const Async&) = delete;
 		Async& operator=(const Async&) = delete;
 	public:
-		static void Call(Callback callback, int delayMs = 0, Worker* worker = Worker::This());
+		static void Call(Callback callback, int delayMs = 0);
 	};
 
 	/// \sa https://developer.mozilla.org/en/docs/Web/API/Window/SetImmediate
@@ -485,7 +474,7 @@ namespace crtc {
 		typedef ErrorCallback RejectedCallback;
 		typedef Functor<void(const FullFilledCallback& resolve, const RejectedCallback& reject)> ExecutorCallback;
 
-		inline static Let<Promise<Args...>> New(const ExecutorCallback& executor, Worker* worker = Worker::This()) {
+		inline static Let<Promise<Args...>> New(const ExecutorCallback& executor) {
 			Let<Promise<Args...>> self = Let<Promise<Args...>>::New();
 
 			RejectedCallback reject([=](const Let<Error>& error) {
@@ -511,7 +500,7 @@ namespace crtc {
 					reject(error);
 					}, [=]() {
 						reject(error);
-						}), 0, worker);
+						}), 0);
 				});
 
 			FullFilledCallback resolve([=](Args... args) {
@@ -533,7 +522,7 @@ namespace crtc {
 					}
 					}, [=]() {
 						asyncReject(Error::New("Reference Lost.", __FILE__, __LINE__));
-						}), 0, worker);
+						}), 0);
 				}, [=]() {
 					asyncReject(Error::New("Reference Lost.", __FILE__, __LINE__));
 					});

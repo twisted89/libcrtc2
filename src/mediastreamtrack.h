@@ -41,13 +41,7 @@ namespace crtc {
 
 		virtual void OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames) override;
 		virtual void OnFrame(const webrtc::VideoFrame& frame) override;
-
-		// Should be called by the source when it discards the frame due to rate
-		// limiting.
 		virtual void OnDiscardedFrame() override;
-
-		// Called on the network thread when video constraints change.
-		// TODO(crbug/1255737): make pure virtual once downstream project adapts.
 		virtual void OnConstraintsChanged(const webrtc::VideoTrackSourceConstraints& constraints) override;
 
 		bool Enabled() const override;

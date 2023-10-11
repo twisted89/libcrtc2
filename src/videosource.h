@@ -31,7 +31,6 @@
 #include "event.h"
 #include "mediastream.h"
 #include "mediastreamtrack.h"
-#include "worker.h"
 #include "imagebuffer.h"
 #include "videocapturer.h"
 

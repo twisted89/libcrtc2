@@ -25,6 +25,7 @@
 
 #include "crtc.h"
 #include "mediastreamtrack.h"
+#include "rtc_base/logging.h"
 
 using namespace crtc;
 
@@ -128,7 +129,7 @@ void MediaStreamTrackInternal::OnDiscardedFrame() {
 }
 
 void MediaStreamTrackInternal::OnConstraintsChanged(const webrtc::VideoTrackSourceConstraints& constraints) {
-    //TODO
+
 }
 
 bool MediaStreamTrackInternal::Enabled() const {

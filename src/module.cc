@@ -42,18 +42,12 @@ Callback asyncCallback;
 class Thread : public rtc::Thread {
 public:
 
-    template <class ReturnT, class FunctorT>
-    ReturnT Invoke(const webrtc::Location& posted_from, const FunctorT& functor) {
-        asyncCallback();
-        return rtc::Thread::Invoke<ReturnT>(posted_from, functor);
-    }
-
     virtual void PostTaskImpl(absl::AnyInvocable<void()&&> task,
         const PostTaskTraits& traits,
         const webrtc::Location& location) override
     {
         asyncCallback();
-        rtc::Thread::PostTask(task, location);
+        rtc::Thread::PostTask(std::move(task), location);
     }
 
     virtual void PostDelayedTaskImpl(absl::AnyInvocable<void()&&> task,
@@ -62,7 +56,7 @@ public:
         const webrtc::Location& location) override
     {
         asyncCallback();
-        rtc::Thread::PostDelayedTask(task, delay, location);
+        rtc::Thread::PostDelayedTask(std::move(task), delay, location);
     }
 };
 
@@ -72,7 +66,7 @@ void Module::Init() {
     rtc::ThreadManager::Instance()->SetCurrentThread(&currentThread);
 	//rtc::ThreadManager::Instance()->WrapCurrentThread();
 	//webrtc::Trace::CreateTrace();
-	//rtc::LogMessage::LogToDebug(rtc::LS_ERROR);
+	rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
 	rtc::InitializeSSL();
 	RTCPeerConnectionInternal::Init();
 }

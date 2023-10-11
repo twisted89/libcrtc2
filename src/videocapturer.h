@@ -28,7 +28,6 @@
 
 #include <list>
 #include "crtc.h"
-#include "worker.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/timestamp_aligner.h"
 #include "rtc_base/thread.h"

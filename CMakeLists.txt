@@ -38,7 +38,6 @@ add_library(crtc SHARED
 	src/time.cc
 	#src/videosink.cc src/videosink.h
 	#src/videosource.cc src/videosource.h
-	src/worker.cc src/worker.h
  "src/event.h")
   
 target_link_libraries(crtc

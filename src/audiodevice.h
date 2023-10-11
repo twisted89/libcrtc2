@@ -27,7 +27,6 @@
 #define CRTC_AUDIODEVICE_H
 
 #include "crtc.h"
-#include "worker.h"
 #include "modules/audio_device/include/fake_audio_device.h"
 #include <rtc_base/synchronization/mutex.h>
 #include <rtc_base/thread.h>
