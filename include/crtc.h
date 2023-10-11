@@ -396,20 +396,6 @@ namespace crtc {
 
 	typedef Functor<void()> Callback;
 
-	class CRTC_EXPORT RealTimeClock : virtual public Reference {
-		RealTimeClock(const RealTimeClock&) = delete;
-		RealTimeClock& operator=(const RealTimeClock&) = delete;
-	public:
-		static Let<RealTimeClock> New(const Callback& runnable = Callback());
-
-		virtual void Start(uint32_t interval_ms = 0) = 0;
-		virtual void Stop() = 0;
-
-	protected:
-		explicit RealTimeClock() { }
-		~RealTimeClock() override { }
-	};
-
 	class CRTC_EXPORT Async {
 		explicit Async() = delete;
 		Async(const Async&) = delete;
@@ -787,6 +773,9 @@ namespace crtc {
 		Callback onended;
 		Callback onmute;
 		Callback onunmute;
+
+		typedef Functor<void(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)> onAudioCallback;
+		typedef Functor<void(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)> onVideoCallback;
 
 	protected:
 		explicit MediaStreamTrack();
