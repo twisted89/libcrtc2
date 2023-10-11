@@ -37,9 +37,40 @@
 using namespace crtc;
 
 volatile intptr_t ModuleInternal::pending_events = 0;
+Callback asyncCallback;
+
+class Thread : public rtc::Thread {
+public:
+
+    template <class ReturnT, class FunctorT>
+    ReturnT Invoke(const webrtc::Location& posted_from, const FunctorT& functor) {
+        asyncCallback();
+        return rtc::Thread::Invoke<ReturnT>(posted_from, functor);
+    }
+
+    virtual void PostTaskImpl(absl::AnyInvocable<void()&&> task,
+        const PostTaskTraits& traits,
+        const webrtc::Location& location) override
+    {
+        asyncCallback();
+        rtc::Thread::PostTask(task, location);
+    }
+
+    virtual void PostDelayedTaskImpl(absl::AnyInvocable<void()&&> task,
+        webrtc::TimeDelta delay,
+        const PostDelayedTaskTraits& traits,
+        const webrtc::Location& location) override
+    {
+        asyncCallback();
+        rtc::Thread::PostDelayedTask(task, delay, location);
+    }
+};
+
+Thread currentThread;
 
 void Module::Init() {
-	rtc::ThreadManager::Instance()->WrapCurrentThread();
+    rtc::ThreadManager::Instance()->SetCurrentThread(&currentThread);
+	//rtc::ThreadManager::Instance()->WrapCurrentThread();
 	//webrtc::Trace::CreateTrace();
 	//rtc::LogMessage::LogToDebug(rtc::LS_ERROR);
 	rtc::InitializeSSL();
@@ -53,10 +84,19 @@ void Module::Dispose() {
 
 bool Module::DispatchEvents(bool kForever) {
 	bool result = false;
+	rtc::Thread* thread = rtc::ThreadManager::Instance()->CurrentThread();
 
 	do {
-		result = (base::subtle::NoBarrier_Load(&ModuleInternal::pending_events) > 0 && rtc::Thread::Current()->ProcessMessages(kForever ? 1000 : 0));
+		result = (base::subtle::NoBarrier_Load(&ModuleInternal::pending_events) > 0 && thread->ProcessMessages(kForever ? 1000 : 0));
 	} while (kForever && result);
 
 	return result;
+}
+
+void Module::RegisterAsyncCallback(const Callback& callback) {
+    asyncCallback = callback;
+}
+
+void Module::UnregisterAsyncCallback() {
+    asyncCallback.Dispose();
 }

@@ -23,7 +23,6 @@
 *
 */
 
-#include "crtc.h"
 #include "rtcpeerconnection.h"
 #include "rtcdatachannel.h"
 #include "mediastream.h"
@@ -34,17 +33,6 @@ std::unique_ptr<rtc::Thread> RTCPeerConnectionInternal::network_thread;
 std::unique_ptr<rtc::Thread> RTCPeerConnectionInternal::worker_thread;
 rtc::scoped_refptr<webrtc::AudioDeviceModule> RTCPeerConnectionInternal::audio_device;
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> RTCPeerConnectionInternal::factory;
-
-RTCPeerConnection::RTCIceServers RTCPeerConnection::defaultIceServers = {
-  {
-		"",
-		"",
-		"",
-	{
-	  "stun:stun.l.google.com:19302"
-	}
-  }
-};
 
 void RTCPeerConnectionInternal::Init() {
 	network_thread = rtc::Thread::CreateWithSocketServer();
@@ -71,7 +59,7 @@ void RTCPeerConnectionInternal::Init() {
 	/*factory = webrtc::CreatePeerConnectionFactory(
 	  network_thread.get(),
 	  worker_thread.get(),
-	  rtc::Thread::Current(),
+	  rtc::ThreadManager::Instance()->CurrentThread(),
 	  audio_device.get(),
 	  nullptr, // cricket::WebRtcVideoEncoderFactory*
 	  nullptr); // cricket::WebRtcVideoDecoderFactory*
@@ -80,7 +68,7 @@ void RTCPeerConnectionInternal::Init() {
 	factory = webrtc::CreatePeerConnectionFactory(
 		network_thread.get(),
 		worker_thread.get(),
-		rtc::Thread::Current(),
+		rtc::ThreadManager::Instance()->CurrentThread(),
 		std::move(audio_device),
 		nullptr, //  rtc::scoped_refptr<AudioEncoderFactory> audio_encoder_factory,
 		nullptr, //rtc::scoped_refptr<AudioDecoderFactory> audio_decoder_factory,
@@ -90,6 +78,10 @@ void RTCPeerConnectionInternal::Init() {
 		nullptr, //rtc::scoped_refptr<AudioProcessing> audio_processing,
 		nullptr, //std::unique_ptr<AudioFrameProcessor> owned_audio_frame_processor,
 		nullptr); //std::unique_ptr<FieldTrialsView> field_trials = nullptr)
+
+	RTCIceServer iceserver;
+	iceserver.urls.push_back(std::string("stun:stun.l.google.com:19302"));
+	RTCPeerConnection::defaultIceServers.push_back(iceserver);
 }
 
 void RTCPeerConnectionInternal::Dispose() {

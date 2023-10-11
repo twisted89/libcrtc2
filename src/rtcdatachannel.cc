@@ -24,132 +24,136 @@
 */
 
 #include "crtc.h"
+#include "event.h"
 #include "rtcdatachannel.h"
 #include "arraybuffer.h"
 
 using namespace crtc;
 
-RTCDataChannelInternal::RTCDataChannelInternal(const rtc::scoped_refptr<webrtc::DataChannelInterface> &channel) :
-  _threshold(0),
-  _channel(channel)
+RTCDataChannelInternal::RTCDataChannelInternal(const rtc::scoped_refptr<webrtc::DataChannelInterface>& channel) :
+	_threshold(0),
+	_channel(channel)
 {
-  _channel->RegisterObserver(this);
+	_channel->RegisterObserver(this);
 
-  if (_channel->state() == webrtc::DataChannelInterface::kOpen) {
-    _event = Event::New();
-  }
+	if (_channel->state() == webrtc::DataChannelInterface::kOpen ||
+		_channel->state() == webrtc::DataChannelInterface::kConnecting)
+	{
+		_event = Event::New();
+	}
 }
 
 RTCDataChannelInternal::~RTCDataChannelInternal() {
-  _channel->UnregisterObserver();
+	_channel->UnregisterObserver();
 }
 
 int RTCDataChannelInternal::Id() {
-  return _channel->id();
+	return _channel->id();
 }
 
 std::string RTCDataChannelInternal::Label() {
-  return _channel->label();
+	return _channel->label();
 }
 
 uint64_t RTCDataChannelInternal::BufferedAmount() {
-  return _channel->buffered_amount();
+	return _channel->buffered_amount();
 }
 
 uint64_t RTCDataChannelInternal::BufferedAmountLowThreshold() {
-  return _threshold;
+	return _threshold;
 }
 
 void RTCDataChannelInternal::SetBufferedAmountLowThreshold(uint64_t threshold) {
-  _threshold = threshold;
+	_threshold = threshold;
 }
 
 uint16_t RTCDataChannelInternal::MaxPacketLifeTime() {
-  return _channel->maxRetransmitTime();
+	return _channel->maxRetransmitTime();
 }
 
 uint16_t RTCDataChannelInternal::MaxRetransmits() {
-  return _channel->maxRetransmits();
+	return _channel->maxRetransmits();
 }
 
 bool RTCDataChannelInternal::Negotiated() {
-  return _channel->negotiated();
+	return _channel->negotiated();
 }
 
 bool RTCDataChannelInternal::Ordered() {
-  return _channel->ordered();
+	return _channel->ordered();
 }
 
 std::string RTCDataChannelInternal::Protocol() {
-  return _channel->protocol();
+	return _channel->protocol();
 }
 
 RTCDataChannel::State RTCDataChannelInternal::ReadyState() {
-  switch (_channel->state()) {
-    case webrtc::DataChannelInterface::kConnecting:
-      return RTCDataChannel::State::kConnecting;
-    case webrtc::DataChannelInterface::kOpen:
-      return RTCDataChannel::State::kOpen;
-    case webrtc::DataChannelInterface::kClosing:
-      return RTCDataChannel::State::kClosing;
-    case webrtc::DataChannelInterface::kClosed:
-      return RTCDataChannel::State::kClosed;
-  }
+	switch (_channel->state()) {
+	case webrtc::DataChannelInterface::kConnecting:
+		return RTCDataChannel::State::kConnecting;
+	case webrtc::DataChannelInterface::kOpen:
+		return RTCDataChannel::State::kOpen;
+	case webrtc::DataChannelInterface::kClosing:
+		return RTCDataChannel::State::kClosing;
+	case webrtc::DataChannelInterface::kClosed:
+	default:
+		return RTCDataChannel::State::kClosed;
+	}
 }
 
 void RTCDataChannelInternal::Close() {
-  _channel->Close();
+	_channel->Close();
 }
 
-void RTCDataChannelInternal::Send(const Let<ArrayBuffer> &data, bool binary) {
-  rtc::CopyOnWriteBuffer buffer(data->Data(), data->ByteLength());
-  webrtc::DataBuffer dataBuffer(buffer, binary);
+void RTCDataChannelInternal::Send(const Let<ArrayBuffer>& data, bool binary) {
+	rtc::CopyOnWriteBuffer buffer(data->Data(), data->ByteLength());
+	webrtc::DataBuffer dataBuffer(buffer, binary);
 
-  if (!_channel->Send(dataBuffer)) {
-    switch (_channel->state()) {
-      case webrtc::DataChannelInterface::kConnecting:
-        onerror(Error::New("Unable to send arraybuffer. DataChannel is connecting", __FILE__, __LINE__));
-        break;
-      case webrtc::DataChannelInterface::kOpen:
-        onerror(Error::New("Unable to send arraybuffer.", __FILE__, __LINE__));
-        break;
-      case webrtc::DataChannelInterface::kClosing:
-        onerror(Error::New("Unable to send arraybuffer. DataChannel is closing", __FILE__, __LINE__));
-        break;
-      case webrtc::DataChannelInterface::kClosed:
-        onerror(Error::New("Unable to send arraybuffer. DataChannel is closed", __FILE__, __LINE__));
-        break;
-    }
-  }
+	if (!_channel->Send(dataBuffer)) {
+		switch (_channel->state()) {
+		case webrtc::DataChannelInterface::kConnecting:
+			onerror(Error::New("Unable to send arraybuffer. DataChannel is connecting", __FILE__, __LINE__));
+			break;
+		case webrtc::DataChannelInterface::kOpen:
+			onerror(Error::New("Unable to send arraybuffer.", __FILE__, __LINE__));
+			break;
+		case webrtc::DataChannelInterface::kClosing:
+			onerror(Error::New("Unable to send arraybuffer. DataChannel is closing", __FILE__, __LINE__));
+			break;
+		case webrtc::DataChannelInterface::kClosed:
+			onerror(Error::New("Unable to send arraybuffer. DataChannel is closed", __FILE__, __LINE__));
+			break;
+		}
+	}
 }
 
 void RTCDataChannelInternal::OnStateChange() {
-  switch (_channel->state()) {
-    case webrtc::DataChannelInterface::kConnecting:
-      break;
-    case webrtc::DataChannelInterface::kOpen:
-      onopen();
-      break;
-    case webrtc::DataChannelInterface::kClosing:
-      break;
-    case webrtc::DataChannelInterface::kClosed:
-      onclose();
-      _event.Dispose();
-      break;
-  }
+	switch (_channel->state()) {
+	case webrtc::DataChannelInterface::kConnecting:
+		break;
+	case webrtc::DataChannelInterface::kOpen:
+		onopen();
+		break;
+	case webrtc::DataChannelInterface::kClosing:
+		break;
+	case webrtc::DataChannelInterface::kClosed:
+		onclose();
+		_event.Dispose();
+		break;
+	}
 }
 
 void RTCDataChannelInternal::OnMessage(const webrtc::DataBuffer& buffer) {
-  onmessage(Let<WrapRtcBuffer>::New(buffer.data), buffer.binary);
+	onmessage(Let<WrapRtcBuffer>::New(buffer.data), buffer.binary);
 }
 
 void RTCDataChannelInternal::OnBufferedAmountChange(uint64_t previous_amount) {
-  if (_threshold && previous_amount > _threshold && _channel->buffered_amount() < _threshold) {
-    onbufferedamountlow();
-  }
+	if (_threshold && previous_amount > _threshold && _channel->buffered_amount() < _threshold) {
+		onbufferedamountlow();
+	}
 }
 
-WrapRtcBuffer::WrapRtcBuffer(const rtc::CopyOnWriteBuffer &buffer) : _data(buffer) {
+WrapRtcBuffer::WrapRtcBuffer(const rtc::CopyOnWriteBuffer& buffer) : _data(buffer) {
 
 }
 
@@ -158,27 +162,27 @@ WrapRtcBuffer::~WrapRtcBuffer() {
 }
 
 size_t WrapRtcBuffer::ByteLength() const {
-  return _data.size();
+	return _data.size();
 }
 
 Let<ArrayBuffer> WrapRtcBuffer::Slice(size_t begin, size_t end) const {
-  if (begin <= end && end <= _data.size()) {
-    return Let<ArrayBufferInternal>::New(_data.data() + begin, ((!end) ? _data.size() : end - begin));
-  }
+	if (begin <= end && end <= _data.size()) {
+		return Let<ArrayBufferInternal>::New(_data.data() + begin, ((!end) ? _data.size() : end - begin));
+	}
 
-  return Let<ArrayBuffer>();
+	return Let<ArrayBuffer>();
 }
 
-uint8_t *WrapRtcBuffer::Data() {
-  return const_cast<uint8_t*>(_data.data());
+uint8_t* WrapRtcBuffer::Data() {
+	return const_cast<uint8_t*>(_data.data());
 }
 
-const uint8_t *WrapRtcBuffer::Data() const {
-  return _data.data();
+const uint8_t* WrapRtcBuffer::Data() const {
+	return _data.data();
 }
 
 std::string WrapRtcBuffer::ToString() const {
-  return std::string(reinterpret_cast<const char *>(_data.data()), _data.size());
+	return std::string(reinterpret_cast<const char*>(_data.data()), _data.size());
 }
 
 RTCDataChannel::RTCDataChannel() {
@@ -186,5 +190,5 @@ RTCDataChannel::RTCDataChannel() {
 }
 
 RTCDataChannel::~RTCDataChannel() {
-  
+
 }

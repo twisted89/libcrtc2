@@ -28,6 +28,7 @@
 #define CRTC_RTCPEERCONNECTION_H
 
 #include "crtc.h"
+#include "event.h"
 
 #include <api/peer_connection_interface.h>
 #include <api/create_peerconnection_factory.h>

@@ -28,6 +28,7 @@
 #define CRTC_VIDEOSINK_H
 
 #include "crtc.h"
+#include "event.h"
 #include "mediastream.h"
 #include "mediastreamtrack.h"
 

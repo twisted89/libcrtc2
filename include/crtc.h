@@ -762,23 +762,11 @@ namespace crtc {
 		static void Init();
 		static bool DispatchEvents(bool kForever = false);
 		static void Dispose();
-	};
-
-	class CRTC_EXPORT Event : virtual public Reference {
-		Event(const Event&) = delete;
-		Event& operator=(const Event&) = delete;
-		friend class Let<Event>;
-
-	public:
-		static Let<Event> New();
-
-	protected:
-		explicit Event();
-		~Event() override;
+		static void RegisterAsyncCallback(const Callback& callback);
+		static void UnregisterAsyncCallback();
 	};
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack
-
 	class MediaStreamTrack : virtual public Reference {
 		MediaStreamTrack(const MediaStreamTrack&) = delete;
 		MediaStreamTrack& operator=(const MediaStreamTrack&) = delete;

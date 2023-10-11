@@ -25,6 +25,7 @@
 
 #include "crtc.h"
 #include "worker.h"
+#include "event.h"
 
 #include "rtc_base/thread.h"
 
@@ -33,12 +34,12 @@ using namespace crtc;
 void Async::Call(Callback callback, int delayMs, Worker* ptr) {
 	Let<Event> event = Event::New();
 
-	rtc::Thread* target = ptr ? static_cast<WorkerInternal*>(ptr) : rtc::Thread::Current();
+	rtc::Thread* target = ptr ? static_cast<WorkerInternal*>(ptr) : rtc::ThreadManager::Instance()->CurrentThread();
 
 	if (delayMs > 0) {
-		target->PostDelayedTask([callback]() { callback(); }, webrtc::TimeDelta::Millis(delayMs));
+		target->PostDelayedTask([callback, event]() { callback(); }, webrtc::TimeDelta::Millis(delayMs));
 	}
 	else {
-		target->PostTask([callback]() { callback(); });
+		target->PostTask([callback, event]() { callback(); });
 	}
 }

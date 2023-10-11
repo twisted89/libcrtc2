@@ -28,6 +28,7 @@
 #define CRTC_VIDEOSOURCE_H
 
 #include "crtc.h"
+#include "event.h"
 #include "mediastream.h"
 #include "mediastreamtrack.h"
 #include "worker.h"

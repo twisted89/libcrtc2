@@ -23,9 +23,8 @@
 *
 */
 
-#include "crtc.h"
+#include "event.h"
 #include "module.h"
-
 #include <base/atomicops.h>
 
 using namespace crtc;

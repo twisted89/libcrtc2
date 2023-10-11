@@ -27,7 +27,7 @@ add_library(crtc SHARED
 	src/audiosink.cc src/audiosink.h
 	src/audiosource.cc src/audiosource.h
 	src/error.cc src/error.h
-	src/event.cc
+	src/event.cc src/event.h
 	src/imagebuffer.cc src/imagebuffer.h
 	src/mediadevices.cc src/mediadevices.h
 	src/mediastream.cc src/mediastream.h
@@ -39,7 +39,7 @@ add_library(crtc SHARED
 	#src/videosink.cc src/videosink.h
 	#src/videosource.cc src/videosource.h
 	src/worker.cc src/worker.h
-)
+ "src/event.h")
   
 target_link_libraries(crtc
         PRIVATE
