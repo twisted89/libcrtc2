@@ -26,6 +26,7 @@
 #include "crtc.h"
 #include "mediastreamtrack.h"
 #include "rtc_base/logging.h"
+#include "videoframe.h"
 
 using namespace crtc;
 
@@ -117,19 +118,35 @@ MediaStreamTrackInternal::~MediaStreamTrackInternal() {
 
 void MediaStreamTrackInternal::OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)
 {
-    //TODO
+    onAudio(audio_data, bits_per_sample, sample_rate, number_of_channels, number_of_frames);
 }
 
 void MediaStreamTrackInternal::OnFrame(const webrtc::VideoFrame& frame) {
-    //TODO
+    onVideo(VideoFrameInternal::New(frame));
 }
 
 void MediaStreamTrackInternal::OnDiscardedFrame() {
-    //TODO
+    onFrameDrop();
 }
 
 void MediaStreamTrackInternal::OnConstraintsChanged(const webrtc::VideoTrackSourceConstraints& constraints) {
+    (void)constraints;
+}
 
+void MediaStreamTrackInternal::OnStarted() {
+    onstarted();
+}
+
+void MediaStreamTrackInternal::OnUnMute() {
+    onunmute();
+}
+
+void MediaStreamTrackInternal::OnMute() {
+    onmute();
+}
+
+void MediaStreamTrackInternal::OnEnded() {
+    onended();
 }
 
 bool MediaStreamTrackInternal::Enabled() const {

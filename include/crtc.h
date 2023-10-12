@@ -741,6 +741,20 @@ namespace crtc {
 		static void UnregisterAsyncCallback();
 	};
 
+	class CRTC_EXPORT VideoFrame {
+		VideoFrame(const VideoFrame&) = delete;
+		VideoFrame& operator=(const VideoFrame&) = delete;
+
+	public:
+		virtual uint8_t* Data() = 0;
+		virtual const uint8_t* Data() const = 0;
+		virtual size_t ByteLength() const = 0;
+
+	protected:
+		explicit VideoFrame() { }
+		virtual ~VideoFrame() { }
+	};
+
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack
 	class MediaStreamTrack : virtual public Reference {
 		MediaStreamTrack(const MediaStreamTrack&) = delete;
@@ -774,8 +788,9 @@ namespace crtc {
 		Callback onmute;
 		Callback onunmute;
 
-		typedef Functor<void(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)> onAudioCallback;
-		typedef Functor<void(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)> onVideoCallback;
+		Functor<void(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)> onAudio;
+		Functor<void(std::shared_ptr<VideoFrame> frame)> onVideo;
+		Functor<void()> onFrameDrop;
 
 	protected:
 		explicit MediaStreamTrack();

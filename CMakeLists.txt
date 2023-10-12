@@ -36,9 +36,10 @@ add_library(crtc SHARED
 	src/rtcdatachannel.cc src/rtcdatachannel.h
 	src/rtcpeerconnection.cc src/rtcpeerconnection.h
 	src/time.cc
+	src/videoframe.cc src/videoframe.h
 	#src/videosink.cc src/videosink.h
 	#src/videosource.cc src/videosource.h
- "src/event.h")
+)
   
 target_link_libraries(crtc
         PRIVATE

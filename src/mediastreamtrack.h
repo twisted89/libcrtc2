@@ -39,11 +39,6 @@ namespace crtc {
 		static webrtc::MediaStreamTrackInterface* New(const Let<MediaStreamTrack>& track);
 		static Let<MediaStreamTrack> New(webrtc::MediaStreamTrackInterface* track = nullptr);
 
-		virtual void OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames) override;
-		virtual void OnFrame(const webrtc::VideoFrame& frame) override;
-		virtual void OnDiscardedFrame() override;
-		virtual void OnConstraintsChanged(const webrtc::VideoTrackSourceConstraints& constraints) override;
-
 		bool Enabled() const override;
 		bool Remote() const override;
 		bool Muted() const override;
@@ -62,21 +57,14 @@ namespace crtc {
 		MediaStreamTrackInternal(MediaStreamTrack::Type kind, webrtc::MediaStreamTrackInterface* track = nullptr, webrtc::MediaSourceInterface* source = nullptr);
 		MediaStreamTrackInternal(const Let<MediaStreamTrackInternal>& track);
 
-		virtual void OnStarted() {
-			onstarted();
-		}
-
-		virtual void OnUnMute() {
-			onunmute();
-		}
-
-		virtual void OnMute() {
-			onmute();
-		}
-
-		virtual void OnEnded() {
-			onended();
-		}
+		virtual void OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames) override;
+		virtual void OnFrame(const webrtc::VideoFrame& frame) override;
+		virtual void OnDiscardedFrame() override;
+		virtual void OnConstraintsChanged(const webrtc::VideoTrackSourceConstraints& constraints) override;
+		virtual void OnStarted();
+		virtual void OnUnMute();
+		virtual void OnMute();
+		virtual void OnEnded();
 
 		~MediaStreamTrackInternal() override;
 
