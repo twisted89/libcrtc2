@@ -47,18 +47,16 @@ WebRTC uses Real-Time Protocol to transfer audio and video.
 #include <vector>
 #include <string>
 
-#undef _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
-
-#if defined(WIN32)
+#if defined(__clang__)
+	#define CRTC_EXPORT __attribute__((visibility("default")))
+	#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
+#else
 	#ifdef CRTC_EXPORTS
 		#define CRTC_EXPORT __declspec(dllexport)
 	#else
 		#define CRTC_EXPORT __declspec(dllimport)
 	#endif
 	#define CRTC_NO_EXPORT
-#else
-	#define CRTC_EXPORT __attribute__((visibility("default")))
-	#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
 #endif
 
 

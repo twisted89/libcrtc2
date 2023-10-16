@@ -1,5 +1,8 @@
 declare_args() {
   build_with_chromium = false
+  is_component_build = true
+  is_clang = true
+  use_custom_libcxx_for_host = true
 }
 
 import("../webrtc.gni")
@@ -17,8 +20,6 @@ if (is_android) {
 }
 
 group("examples") {
-  # This target shall build all targets in examples.
-  testonly = true
   deps = [
     ":crtc"
   ]
@@ -27,6 +28,8 @@ group("examples") {
 rtc_shared_library("crtc") {
   libs = []
   defines = []
+
+  cflags = [ "-fvisibility=default" ]
   
   sources = [
     "src/atomic.cc",
@@ -93,7 +96,7 @@ rtc_shared_library("crtc") {
   }
   
   if (is_linux || is_chromeos) {
-    cflags = [ "-Wno-deprecated-declarations" ]
+    cflags += [ "-Wno-deprecated-declarations" ]
   }  
 
   include_dirs = [
