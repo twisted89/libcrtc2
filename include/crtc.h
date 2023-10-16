@@ -43,36 +43,36 @@ WebRTC uses Real-Time Protocol to transfer audio and video.
 #ifndef INCLUDE_CRTC_H_
 #define INCLUDE_CRTC_H_
 
-#include <utility>
 #include <memory>
 #include <vector>
 #include <string>
 
-#ifdef CRTC_OS_MSVC
-#define CRTC_EXPORT __declspec(dllexport)
-#define CRTC_NO_EXPORT __declspec(dllimport)
+#undef _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
+
+#if defined(WIN32)
+	#ifdef CRTC_EXPORTS
+		#define CRTC_EXPORT __declspec(dllexport)
+	#else
+		#define CRTC_EXPORT __declspec(dllimport)
+	#endif
+	#define CRTC_NO_EXPORT
 #else
-#define CRTC_EXPORT __attribute__((visibility("default")))
-#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
+	#define CRTC_EXPORT __attribute__((visibility("default")))
+	#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
 #endif
 
-#ifndef CRTC_PRIVATE
-#define CRTC_PRIVATE(className)                     \
-  className(const className&) = delete;             \
-  className& operator=(const className&) = delete;
-#endif
 
 namespace crtc {
 
-	class CRTC_EXPORT Atomic {
+	class Atomic {
 		explicit Atomic() = delete;
 		Atomic(const Atomic&) = delete;
 		Atomic& operator=(const Atomic&) = delete;
 
 	public:
-		static intptr_t Increment(intptr_t* arg);
-		static intptr_t Decrement(intptr_t* arg);
-		static intptr_t AcquireLoad(intptr_t* arg);
+		static intptr_t CRTC_EXPORT Increment(intptr_t* arg);
+		static intptr_t CRTC_EXPORT Decrement(intptr_t* arg);
+		static intptr_t CRTC_EXPORT AcquireLoad(intptr_t* arg);
 	};
 
 	class CRTC_EXPORT Time {
@@ -749,10 +749,13 @@ namespace crtc {
 		virtual uint8_t* Data() = 0;
 		virtual const uint8_t* Data() const = 0;
 		virtual size_t ByteLength() const = 0;
+		virtual uint32_t TimeStamp() const;
 
 	protected:
 		explicit VideoFrame() { }
 		virtual ~VideoFrame() { }
+
+		uint32_t _timestamp = 0;
 	};
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack
@@ -873,23 +876,6 @@ namespace crtc {
 		~AudioSource() override;
 	};
 
-	class CRTC_EXPORT AudioSink : virtual public MediaStreamTrack {
-		AudioSink(const AudioSink&) = delete;
-		AudioSink& operator=(const AudioSink&) = delete;
-
-	public:
-		static Let<AudioSink> New(const Let<MediaStreamTrack>& track);
-
-		virtual bool IsRunning() const = 0;
-		virtual void Stop() = 0;
-
-		Functor<void(const Let<AudioBuffer>& buffer)> ondata;
-
-	protected:
-		explicit AudioSink();
-		~AudioSink() override;
-	};
-
 	class CRTC_EXPORT ImageBuffer : public ArrayBuffer {
 		ImageBuffer(const ImageBuffer&) = delete;
 		ImageBuffer& operator=(const ImageBuffer&) = delete;
@@ -938,23 +924,6 @@ namespace crtc {
 	protected:
 		explicit VideoSource();
 		~VideoSource() override;
-	};
-
-	class CRTC_EXPORT VideoSink : virtual public MediaStreamTrack {
-		VideoSink(const VideoSink&) = delete;
-		VideoSink& operator=(const VideoSink&) = delete;
-
-	public:
-		static Let<VideoSink> New(const Let<MediaStreamTrack>& track);
-
-		virtual bool IsRunning() const = 0;
-		virtual void Stop() = 0;
-
-		Functor<void(const Let<ImageBuffer>& frame)> ondata;
-
-	protected:
-		explicit VideoSink();
-		~VideoSink() override;
 	};
 
 	/// \sa https://developer.mozilla.org/en/docs/Web/API/RTCDataChannel
@@ -1021,6 +990,8 @@ namespace crtc {
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/send
 
 		virtual void Send(const Let<ArrayBuffer>& data, bool binary = true) = 0;
+
+		virtual void Send(const unsigned char* data, size_t length, bool binary = true) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/onbufferedamountlow
 
@@ -1158,10 +1129,6 @@ namespace crtc {
 			std::vector<std::string> urls;
 		};
 
-		typedef std::vector<RTCIceServer> RTCIceServers;
-
-		static RTCIceServers defaultIceServers;
-
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCConfiguration
 
 		struct RTCConfiguration {
@@ -1170,7 +1137,7 @@ namespace crtc {
 
 			uint16_t iceCandidatePoolSize;
 			RTCBundlePolicy bundlePolicy;
-			RTCIceServers iceServers;
+			std::vector<RTCIceServer> iceServers;
 			RTCIceTransportPolicy iceTransportPolicy;
 			RTCRtcpMuxPolicy rtcpMuxPolicy;
 		};
@@ -1194,6 +1161,7 @@ namespace crtc {
 		};
 
 		typedef Functor<void(const Let<MediaStream>& stream)> StreamCallback;
+		typedef Functor<void(const Let<MediaStreamTrack>& track)> TrackCallback;
 		typedef Functor<void(const Let<RTCDataChannel>& dataChannel)> DataChannelCallback;
 		typedef Functor<void(const RTCIceCandidate& candidate)> IceCandidateCallback;
 
@@ -1263,6 +1231,8 @@ namespace crtc {
 		Callback onicecandidatesremoved;
 		StreamCallback onaddstream;
 		StreamCallback onremovestream;
+		TrackCallback onaddtrack;
+		TrackCallback onremovetrack;
 		DataChannelCallback ondatachannel;
 		IceCandidateCallback onicecandidate;
 

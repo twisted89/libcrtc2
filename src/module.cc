@@ -28,10 +28,11 @@
 #include "rtcpeerconnection.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/ssl_adapter.h"
+#include "rtc_base/physical_socket_server.h"
 #include <base/atomicops.h>
 
-#ifdef CRTC_OS_WIN
-#include "rtc_base/win32_socket_init.h"
+#if defined(_MSC_VER)
+    #include "rtc_base/win32_socket_init.h"
 #endif
 
 using namespace crtc;
@@ -39,8 +40,13 @@ using namespace crtc;
 volatile intptr_t ModuleInternal::pending_events = 0;
 Callback asyncCallback;
 
-class Thread : public rtc::Thread {
+class Thread : public rtc::AutoSocketServerThread {
 public:
+    Thread() : rtc::AutoSocketServerThread(&_ss) {}
+
+    ~Thread() {
+        rtc::Thread::Stop();
+    }
 
     virtual void PostTaskImpl(absl::AnyInvocable<void()&&> task,
         const PostTaskTraits& traits,
@@ -58,6 +64,9 @@ public:
         asyncCallback();
         rtc::Thread::PostDelayedTask(std::move(task), delay, location);
     }
+
+private:
+    rtc::PhysicalSocketServer _ss;
 };
 
 Thread currentThread;

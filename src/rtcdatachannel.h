@@ -28,7 +28,7 @@
 #define CRTC_RTCDATACHANNEL_H
 
 #include "crtc.h"
-
+#include "event.h"
 #include <api/data_channel_interface.h>
 
 namespace crtc {
@@ -49,6 +49,7 @@ namespace crtc {
 		RTCDataChannel::State ReadyState() override;
 		void Close() override;
 		void Send(const Let<ArrayBuffer>& data, bool binary = true) override;
+		void Send(const unsigned char* data, size_t length, bool binary = true) override;
 
 	protected:
 		~RTCDataChannelInternal() override;

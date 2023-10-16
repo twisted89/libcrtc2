@@ -38,15 +38,13 @@ namespace crtc {
 	public:
 		AudioDevice() :
 			_capturing(false),
-			_drainNeeded(false),
-			_clock(RealTimeClock::New(Functor<void()>(this, &AudioDevice::OnTime)))
+			_drainNeeded(false)
 		{
 
 		}
 
 		~AudioDevice() override {
 			StopRecording();
-			_clock->Stop();
 		}
 
 		sigslot::signal0<> Drain;
@@ -63,7 +61,6 @@ namespace crtc {
 		}
 
 		inline int32_t Init() override {
-			_clock->Start(100); // 100 * 10ms = 1000ms 
 			return 0;
 		}
 
@@ -164,7 +161,6 @@ namespace crtc {
 
 		std::list<Queue> _queue RTC_GUARDED_BY(lock_);
 		webrtc::AudioTransport* _callback RTC_GUARDED_BY(lock_);
-		Let<RealTimeClock> _clock;
 	};
 }
 

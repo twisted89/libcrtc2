@@ -24,7 +24,6 @@
 */
 
 #include "crtc.h"
-#include "event.h"
 #include "rtcdatachannel.h"
 #include "arraybuffer.h"
 
@@ -107,6 +106,28 @@ void RTCDataChannelInternal::Close() {
 
 void RTCDataChannelInternal::Send(const Let<ArrayBuffer>& data, bool binary) {
 	rtc::CopyOnWriteBuffer buffer(data->Data(), data->ByteLength());
+	webrtc::DataBuffer dataBuffer(buffer, binary);
+
+	if (!_channel->Send(dataBuffer)) {
+		switch (_channel->state()) {
+		case webrtc::DataChannelInterface::kConnecting:
+			onerror(Error::New("Unable to send arraybuffer. DataChannel is connecting", __FILE__, __LINE__));
+			break;
+		case webrtc::DataChannelInterface::kOpen:
+			onerror(Error::New("Unable to send arraybuffer.", __FILE__, __LINE__));
+			break;
+		case webrtc::DataChannelInterface::kClosing:
+			onerror(Error::New("Unable to send arraybuffer. DataChannel is closing", __FILE__, __LINE__));
+			break;
+		case webrtc::DataChannelInterface::kClosed:
+			onerror(Error::New("Unable to send arraybuffer. DataChannel is closed", __FILE__, __LINE__));
+			break;
+		}
+	}
+}
+
+void RTCDataChannelInternal::Send(const unsigned char* data, size_t length, bool binary) {
+	rtc::CopyOnWriteBuffer buffer(data, length);
 	webrtc::DataBuffer dataBuffer(buffer, binary);
 
 	if (!_channel->Send(dataBuffer)) {

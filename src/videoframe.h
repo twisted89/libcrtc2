@@ -7,13 +7,16 @@
 namespace crtc {
 	class VideoFrameInternal : public VideoFrame {
 	public:
-		static std::shared_ptr<VideoFrame> New(const webrtc::VideoFrame &frame);
+		VideoFrameInternal(const webrtc::VideoFrame& frame);
+		virtual ~VideoFrameInternal() override;
+
+		virtual uint8_t* Data() override;
+		virtual const uint8_t* Data() const override;
+		virtual size_t ByteLength() const override;
 
 	protected:
-		explicit VideoFrameInternal(const webrtc::VideoFrame &frame);
-		~VideoFrameInternal() override;
-
 		rtc::scoped_refptr<webrtc::VideoFrameBuffer> _frame;
+		rtc::scoped_refptr<webrtc::I420BufferInterface> _420Frame;
 	};
 }
 

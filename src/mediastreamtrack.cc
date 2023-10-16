@@ -122,7 +122,7 @@ void MediaStreamTrackInternal::OnData(const void* audio_data, int bits_per_sampl
 }
 
 void MediaStreamTrackInternal::OnFrame(const webrtc::VideoFrame& frame) {
-    onVideo(VideoFrameInternal::New(frame));
+    onVideo(std::make_shared<VideoFrameInternal>(frame));
 }
 
 void MediaStreamTrackInternal::OnDiscardedFrame() {

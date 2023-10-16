@@ -78,10 +78,6 @@ void RTCPeerConnectionInternal::Init() {
 		nullptr, //rtc::scoped_refptr<AudioProcessing> audio_processing,
 		nullptr, //std::unique_ptr<AudioFrameProcessor> owned_audio_frame_processor,
 		nullptr); //std::unique_ptr<FieldTrialsView> field_trials = nullptr)
-
-	RTCIceServer iceserver;
-	iceserver.urls.push_back(std::string("stun:stun.l.google.com:19302"));
-	RTCPeerConnection::defaultIceServers.push_back(iceserver);
 }
 
 void RTCPeerConnectionInternal::Dispose() {
@@ -475,6 +471,16 @@ void RTCPeerConnectionInternal::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaS
 	onremovestream(MediaStreamInternal::New(stream.get()));
 }
 
+void RTCPeerConnectionInternal::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+{
+	onaddtrack(MediaStreamTrackInternal::New(transceiver->receiver()->track().get()));
+}
+
+void RTCPeerConnectionInternal::OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
+{
+	onremovetrack(MediaStreamTrackInternal::New(receiver->track().get()));
+}
+
 void RTCPeerConnectionInternal::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
 	if (data_channel.get()) {
 		Let<RTCDataChannel> channel = Let<RTCDataChannelInternal>::New(data_channel);
@@ -540,10 +546,13 @@ Let<RTCPeerConnection> RTCPeerConnection::New(const RTCPeerConnection::RTCConfig
 RTCPeerConnection::RTCConfiguration::RTCConfiguration() :
 	iceCandidatePoolSize(0),
 	bundlePolicy(kMaxBundle),
-	iceServers(defaultIceServers),
 	iceTransportPolicy(kAll),
 	rtcpMuxPolicy(kRequire)
-{ }
+{ 
+	RTCIceServer iceserver;
+	iceserver.urls.push_back(std::string("stun:stun.l.google.com:19302"));
+	iceServers.push_back(iceserver);
+}
 
 RTCPeerConnection::RTCConfiguration::~RTCConfiguration() {
 

@@ -24,7 +24,6 @@ add_library(crtc SHARED
 	src/async.cc 
 	src/atomic.cc
 	src/audiobuffer.cc src/audiobuffer.h
-	src/audiosink.cc src/audiosink.h
 	src/audiosource.cc src/audiosource.h
 	src/error.cc src/error.h
 	src/event.cc src/event.h
@@ -37,7 +36,6 @@ add_library(crtc SHARED
 	src/rtcpeerconnection.cc src/rtcpeerconnection.h
 	src/time.cc
 	src/videoframe.cc src/videoframe.h
-	#src/videosink.cc src/videosink.h
 	#src/videosource.cc src/videosource.h
 )
   

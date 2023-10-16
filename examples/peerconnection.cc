@@ -11,7 +11,7 @@ void RemovePeerEvents(const Let<RTCPeerConnection> &peer) {
   peer->onsignalingstatechange.Dispose();
   peer->onicegatheringstatechange.Dispose();
   peer->oniceconnectionstatechange.Dispose();
-  peer->onicecandidatesremoved.Dispose();
+  peer->oniscecandidatesremoved.Dispose();
   peer->onaddstream.Dispose();
   peer->onremovestream.Dispose();
   peer->ondatachannel.Dispose();
