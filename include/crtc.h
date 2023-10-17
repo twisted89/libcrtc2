@@ -47,16 +47,16 @@ WebRTC uses Real-Time Protocol to transfer audio and video.
 #include <vector>
 #include <string>
 
-#if defined(__clang__)
-	#define CRTC_EXPORT __attribute__((visibility("default")))
-	#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
-#else
+#if defined(_MSC_VER)
 	#ifdef CRTC_EXPORTS
-		#define CRTC_EXPORT __declspec(dllexport)
+		#define CRTC_EXPORT __declspec(dllexport) // Even though clang will complain about this on Windows it is required to export symbols correctly
 	#else
 		#define CRTC_EXPORT __declspec(dllimport)
 	#endif
 	#define CRTC_NO_EXPORT
+#else
+	#define CRTC_EXPORT __attribute__((visibility("default")))
+	#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
 #endif
 
 
