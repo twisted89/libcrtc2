@@ -32,7 +32,7 @@
 
 using namespace crtc;
 
-ImageBufferInternal::ImageBufferInternal(const Let<ArrayBuffer>& buffer, int width, int height) :
+ImageBufferInternal::ImageBufferInternal(const std::shared_ptr<ArrayBuffer>& buffer, int width, int height) :
 	ArrayBufferInternal(buffer),
 	_width(width),
 	_height(height)
@@ -56,12 +56,12 @@ ImageBufferInternal::~ImageBufferInternal() {
 
 }
 
-Let<ImageBuffer> ImageBufferInternal::New(const Let<ArrayBuffer>& buffer, int width, int height) {
-	return Let<ImageBufferInternal>::New(buffer, width, height);
+std::shared_ptr<ImageBuffer> ImageBufferInternal::New(const std::shared_ptr<ArrayBuffer>& buffer, int width, int height) {
+	return std::make_shared<ImageBufferInternal>(buffer, width, height);
 }
 
-Let<ImageBuffer> ImageBufferInternal::New(int width, int height) {
-	return Let<ImageBufferInternal>::New(width, height);
+std::shared_ptr<ImageBuffer> ImageBufferInternal::New(int width, int height) {
+	return std::make_shared<ImageBufferInternal>(width, height);
 }
 
 int ImageBufferInternal::Width() const {
@@ -100,7 +100,7 @@ size_t ImageBufferInternal::ByteLength() const {
 	return ArrayBufferInternal::ByteLength();
 }
 
-Let<ArrayBuffer> ImageBufferInternal::Slice(size_t begin, size_t end) const {
+std::shared_ptr<ArrayBuffer> ImageBufferInternal::Slice(size_t begin, size_t end) const {
 	return ArrayBufferInternal::Slice(begin, end);
 }
 
@@ -116,16 +116,16 @@ std::string ImageBufferInternal::ToString() const {
 	return ArrayBufferInternal::ToString();
 }
 
-Let<ImageBuffer> ImageBuffer::New(int width, int height) {
+std::shared_ptr<ImageBuffer> ImageBuffer::New(int width, int height) {
 	return ImageBufferInternal::New(width, height);
 }
 
-Let<ImageBuffer> ImageBuffer::New(const Let<ArrayBuffer>& buffer, int width, int height) {
+std::shared_ptr<ImageBuffer> ImageBuffer::New(const std::shared_ptr<ArrayBuffer>& buffer, int width, int height) {
 	if (ImageBuffer::ByteLength(width, height) == buffer->ByteLength()) {
 		return ImageBufferInternal::New(buffer, width, height);
 	}
 
-	return Let<ImageBuffer>::Empty();
+	return nullptr;
 }
 
 size_t ImageBuffer::ByteLength(int height, int stride_y, int stride_u, int stride_v) {
@@ -140,15 +140,15 @@ size_t ImageBuffer::ByteLength(int width, int height) {
 	return 0;
 }
 
-rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapImageBuffer::New(const Let<ImageBuffer>& source) {
-	if (!source.IsEmpty()) {
+rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapImageBuffer::New(const std::shared_ptr<ImageBuffer>& source) {
+	if (source) {
 		return rtc::make_ref_counted<WrapImageBuffer>(source);
 	}
 
 	return nullptr;
 }
 
-WrapImageBuffer::WrapImageBuffer(const Let<ImageBuffer>& source) :
+WrapImageBuffer::WrapImageBuffer(const std::shared_ptr<ImageBuffer>& source) :
 	_source(source)
 { }
 
@@ -186,12 +186,12 @@ rtc::scoped_refptr<webrtc::I420BufferInterface> WrapImageBuffer::ToI420() {
 	return i420_buffer;
 }
 
-Let<ImageBuffer> WrapVideoFrameBuffer::New(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& vfb) {
+std::shared_ptr<ImageBuffer> WrapVideoFrameBuffer::New(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& vfb) {
 	if (vfb.get()) {
-		return Let<WrapVideoFrameBuffer>::New(vfb);
+		return std::make_shared<WrapVideoFrameBuffer>(vfb);
 	}
 
-	return Let<ImageBuffer>::Empty();
+	return nullptr;
 }
 
 WrapVideoFrameBuffer::WrapVideoFrameBuffer(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& vfb) :
@@ -224,14 +224,14 @@ size_t WrapVideoFrameBuffer::ByteLength() const {
 	return ImageBuffer::ByteLength(_vfb->height(), i420->StrideY(), i420->StrideU(), i420->StrideV());
 }
 
-Let<ArrayBuffer> WrapVideoFrameBuffer::Slice(size_t begin, size_t end) const {
-	Let<ArrayBuffer> buffer = ArrayBuffer::New(Data(), ByteLength());
+std::shared_ptr<ArrayBuffer> WrapVideoFrameBuffer::Slice(size_t begin, size_t end) const {
+	auto buffer = ArrayBuffer::New(Data(), ByteLength());
 
-	if (!buffer.IsEmpty()) {
+	if (buffer) {
 		return buffer->Slice(begin, end);
 	}
 
-	return Let<ArrayBuffer>::Empty();
+	return nullptr;
 }
 
 uint8_t* WrapVideoFrameBuffer::Data() {
@@ -246,15 +246,15 @@ std::string WrapVideoFrameBuffer::ToString() const {
 	return std::string(std::string(reinterpret_cast<const char*>(Data()), ByteLength()));
 }
 
-rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapBufferToVideoFrameBuffer::New(const Let<ArrayBuffer>& source, int width, int height) {
-	if (!source.IsEmpty()) {
+rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapBufferToVideoFrameBuffer::New(const std::shared_ptr<ArrayBuffer>& source, int width, int height) {
+	if (source) {
 		return rtc::make_ref_counted<WrapBufferToVideoFrameBuffer>(source, width, height);
 	}
 
 	return nullptr;
 }
 
-WrapBufferToVideoFrameBuffer::WrapBufferToVideoFrameBuffer(const Let<ArrayBuffer>& source, int width, int height) :
+WrapBufferToVideoFrameBuffer::WrapBufferToVideoFrameBuffer(const std::shared_ptr<ArrayBuffer>& source, int width, int height) :
 	_source(source),
 	_width(width),
 	_height(height),

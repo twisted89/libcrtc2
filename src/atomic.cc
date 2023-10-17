@@ -29,14 +29,14 @@
 
 using namespace crtc;
 
-intptr_t CRTC_EXPORT Atomic::Increment(intptr_t *arg) {
+intptr_t Atomic::Increment(intptr_t *arg) {
   return base::subtle::NoBarrier_AtomicIncrement(arg, 1);
 }
 
-intptr_t CRTC_EXPORT Atomic::Decrement(intptr_t*arg) {
+intptr_t Atomic::Decrement(intptr_t*arg) {
   return base::subtle::NoBarrier_AtomicIncrement(arg, -1);
 }
 
-intptr_t CRTC_EXPORT Atomic::AcquireLoad(intptr_t*arg) {
+intptr_t Atomic::AcquireLoad(intptr_t*arg) {
   return base::subtle::NoBarrier_Load(arg);
 }

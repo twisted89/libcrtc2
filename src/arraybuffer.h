@@ -32,12 +32,11 @@
 
 namespace crtc {
     class ArrayBufferInternal : public ArrayBuffer {
-        friend class Let<ArrayBufferInternal>;
 
     public:
         size_t ByteLength() const override;
 
-        Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
+        std::shared_ptr<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
 
         uint8_t* Data() override;
         const uint8_t* Data() const override;
@@ -49,9 +48,9 @@ namespace crtc {
 
     protected:
         explicit ArrayBufferInternal(const uint8_t* data = nullptr, size_t byteLength = 0);
-        ArrayBufferInternal(const Let<ArrayBuffer>& buffer);
+        ArrayBufferInternal(const std::shared_ptr<ArrayBuffer>& buffer);
 
-        ~ArrayBufferInternal() override;
+        ~ArrayBufferInternal();
 
         void Init(const uint8_t* data, size_t byteLength);
 

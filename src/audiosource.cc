@@ -47,7 +47,7 @@ void AudioSourceInternal::Stop() {
   _audio->StopRecording();
 }
 
-void AudioSourceInternal::Write(const Let<AudioBuffer> &buffer, ErrorCallback callback) {
+void AudioSourceInternal::Write(const std::shared_ptr<AudioBuffer> &buffer, ErrorCallback callback) {
   _audio->Write(buffer, callback);
 }
 
@@ -65,7 +65,7 @@ void AudioSourceInternal::RemoveTrack(const Let<MediaStreamTrack> &track) {
 }
 */
 
-Let<MediaStreamTrack> AudioSourceInternal::GetTrackById(const std::string &id) const {
+std::shared_ptr<MediaStreamTrack> AudioSourceInternal::GetTrackById(const std::string &id) const {
   return MediaStreamInternal::GetTrackById(id);
 }
 
@@ -82,7 +82,7 @@ MediaStreamTracks AudioSourceInternal::GetVideoTracks() const {
   return MediaStreamInternal::GetVideoTracks();
 }
 
-Let<MediaStream> AudioSourceInternal::Clone() {
+std::shared_ptr<MediaStream> AudioSourceInternal::Clone() {
   return MediaStreamInternal::Clone();
 }
 
@@ -90,8 +90,8 @@ void AudioSourceInternal::OnDrain() {
   ondrain();
 }
 
-Let<AudioSource> AudioSource::New() {
-  return Let<AudioSourceInternal>::New();
+std::shared_ptr<AudioSource> AudioSource::New() {
+  return std::make_shared<AudioSourceInternal>();
 }
 
 AudioSource::AudioSource() {

@@ -31,13 +31,12 @@
 
 namespace crtc {
 	class AudioBufferInternal : public AudioBuffer, public ArrayBufferInternal {
-		friend class Let<AudioBufferInternal>;
 		friend class AudioBuffer;
 
 	public:
 		size_t ByteLength() const override;
 
-		Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
+		std::shared_ptr<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
 
 		uint8_t* Data() override;
 		const uint8_t* Data() const override;
@@ -50,8 +49,8 @@ namespace crtc {
 		int Frames() const override;
 
 	protected:
-		explicit AudioBufferInternal(const Let<ArrayBuffer>& buffer, int channels, int sampleRate, int bitsPerSample, int frames);
-		~AudioBufferInternal() override;
+		explicit AudioBufferInternal(const std::shared_ptr<ArrayBuffer>& buffer, int channels, int sampleRate, int bitsPerSample, int frames);
+		~AudioBufferInternal();
 
 		int _channels;
 		int _samplerate;

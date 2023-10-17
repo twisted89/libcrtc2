@@ -31,7 +31,7 @@
 
 namespace crtc {  
   class ErrorInternal : public Error {
-      friend class Let<ErrorInternal>;
+      friend class std::shared_ptr<ErrorInternal>;
 
     public:
       std::string Message() const override;
@@ -42,7 +42,7 @@ namespace crtc {
 
     protected:
       explicit ErrorInternal(const std::string &message, const std::string &fileName, int lineNumber);
-      ~ErrorInternal() override;
+      ~ErrorInternal();
 
       std::string _name = "Error";
       std::string _message;

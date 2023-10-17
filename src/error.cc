@@ -38,8 +38,8 @@ ErrorInternal::~ErrorInternal() {
 
 }
 
-Let<Error> Error::New(std::string message, std::string fileName, int lineNumber) {
-  return Let<ErrorInternal>::New(message, fileName, lineNumber);
+std::shared_ptr<Error> Error::New(std::string message, std::string fileName = __FILE__, int lineNumber = __LINE__) {
+  return std::make_shared<ErrorInternal>(message, fileName, lineNumber);
 }
 
 std::string ErrorInternal::Message() const {

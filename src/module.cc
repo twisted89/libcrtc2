@@ -101,5 +101,5 @@ void Module::RegisterAsyncCallback(const Callback& callback) {
 }
 
 void Module::UnregisterAsyncCallback() {
-    asyncCallback.Dispose();
+    asyncCallback = nullptr;
 }

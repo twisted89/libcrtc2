@@ -186,8 +186,8 @@ class CRTC_EXPORT MediaDevices {
 
     /// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
 
-    static crtc::Let<crtc::MediaStream> GetUserMedia();
-    static crtc::Let<crtc::MediaStream> GetUserMedia(const MediaStreamConstraints &constraints);
+    static std::shared_ptr<crtc::MediaStream> GetUserMedia();
+    static std::shared_ptr<crtc::MediaStream> GetUserMedia(const MediaStreamConstraints &constraints);
 };
 
 

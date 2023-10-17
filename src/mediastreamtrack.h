@@ -33,11 +33,10 @@
 namespace crtc {
 	class MediaStreamTrackInternal : public MediaStreamTrack, public webrtc::ObserverInterface, 
 		webrtc::AudioTrackSinkInterface, rtc::VideoSinkInterface<webrtc::VideoFrame> {
-		friend class Let<MediaStreamTrackInternal>;
 
 	public:
-		static webrtc::MediaStreamTrackInterface* New(const Let<MediaStreamTrack>& track);
-		static Let<MediaStreamTrack> New(webrtc::MediaStreamTrackInterface* track = nullptr);
+		static webrtc::MediaStreamTrackInterface* New(const std::shared_ptr<MediaStreamTrack>& track);
+		static std::shared_ptr<MediaStreamTrack> New(const webrtc::MediaStreamTrackInterface* track = nullptr);
 
 		bool Enabled() const override;
 		bool Remote() const override;
@@ -45,7 +44,7 @@ namespace crtc {
 		std::string Id() const override;
 		MediaStreamTrack::Type Kind() const override;
 		MediaStreamTrack::State ReadyState() const override;
-		Let<MediaStreamTrack> Clone() override;
+		std::shared_ptr<MediaStreamTrack> Clone() override;
 
 		rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> GetTrack() const;
 		rtc::scoped_refptr<webrtc::MediaSourceInterface> GetSource() const;
@@ -55,7 +54,7 @@ namespace crtc {
 
 	protected:
 		MediaStreamTrackInternal(MediaStreamTrack::Type kind, webrtc::MediaStreamTrackInterface* track = nullptr, webrtc::MediaSourceInterface* source = nullptr);
-		MediaStreamTrackInternal(const Let<MediaStreamTrackInternal>& track);
+		MediaStreamTrackInternal(const std::shared_ptr<MediaStreamTrackInternal>& track);
 
 		virtual void OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames) override;
 		virtual void OnFrame(const webrtc::VideoFrame& frame) override;

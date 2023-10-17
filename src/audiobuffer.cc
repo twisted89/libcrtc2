@@ -29,7 +29,7 @@
 
 using namespace crtc;
 
-AudioBufferInternal::AudioBufferInternal(const Let<ArrayBuffer>& buffer, int channels, int sampleRate, int bitsPerSample, int frames) :
+AudioBufferInternal::AudioBufferInternal(const std::shared_ptr<ArrayBuffer>& buffer, int channels, int sampleRate, int bitsPerSample, int frames) :
 	ArrayBufferInternal(buffer),
 	_channels(channels),
 	_samplerate(sampleRate),
@@ -45,7 +45,7 @@ size_t AudioBufferInternal::ByteLength() const {
 	return ArrayBufferInternal::ByteLength();
 }
 
-Let<ArrayBuffer> AudioBufferInternal::Slice(size_t begin, size_t end) const {
+std::shared_ptr<ArrayBuffer> AudioBufferInternal::Slice(size_t begin, size_t end) const {
 	return ArrayBufferInternal::Slice(begin, end);
 }
 
@@ -77,11 +77,11 @@ int AudioBufferInternal::Frames() const {
 	return _frames;
 }
 
-Let<AudioBuffer> AudioBuffer::New(int channels, int sampleRate, int bitsPerSample, int frames) {
-	return Let<AudioBufferInternal>::New(ArrayBuffer::New(sampleRate / 100), channels, sampleRate, bitsPerSample, frames);
+std::shared_ptr<AudioBuffer> AudioBuffer::New(int channels, int sampleRate, int bitsPerSample, int frames) {
+	return std::make_shared<AudioBufferInternal>(ArrayBuffer::New(sampleRate / 100), channels, sampleRate, bitsPerSample, frames);
 }
 
-Let<AudioBuffer> AudioBuffer::New(const Let<ArrayBuffer>& buffer, int channels, int sampleRate, int bitsPerSample, int frames) {
-	return Let<AudioBufferInternal>::New(buffer, channels, sampleRate, bitsPerSample, frames);
+std::shared_ptr<AudioBuffer> AudioBuffer::New(const std::shared_ptr<ArrayBuffer>& buffer, int channels, int sampleRate, int bitsPerSample, int frames) {
+	return std::make_shared<AudioBufferInternal>(buffer, channels, sampleRate, bitsPerSample, frames);
 }
 

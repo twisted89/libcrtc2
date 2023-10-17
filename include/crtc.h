@@ -46,6 +46,7 @@ WebRTC uses Real-Time Protocol to transfer audio and video.
 #include <memory>
 #include <vector>
 #include <string>
+#include "utils.hpp"
 
 #if defined(_MSC_VER)
 	#ifdef CRTC_EXPORTS
@@ -62,15 +63,15 @@ WebRTC uses Real-Time Protocol to transfer audio and video.
 
 namespace crtc {
 
-	class Atomic {
+	class CRTC_EXPORT Atomic {
 		explicit Atomic() = delete;
 		Atomic(const Atomic&) = delete;
 		Atomic& operator=(const Atomic&) = delete;
 
 	public:
-		static intptr_t CRTC_EXPORT Increment(intptr_t* arg);
-		static intptr_t CRTC_EXPORT Decrement(intptr_t* arg);
-		static intptr_t CRTC_EXPORT AcquireLoad(intptr_t* arg);
+		static intptr_t Increment(intptr_t* arg);
+		static intptr_t Decrement(intptr_t* arg);
+		static intptr_t AcquireLoad(intptr_t* arg);
 	};
 
 	class CRTC_EXPORT Time {
@@ -84,315 +85,8 @@ namespace crtc {
 		static double Since(int64_t begin, int64_t end = Now()); // returns seconds
 	};
 
-	/// \sa https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Statements/let
 
-	template <class T> class Let {
-	public:
-		template <typename... Args> inline static Let<T> New(Args&&... args) {
-			return Let<T>(new Constructor<Args...>(std::forward<Args>(args)...));
-		}
-
-		inline static Let<T> Empty() {
-			return Let<T>();
-		}
-
-		inline explicit Let() : _ptr(nullptr) { }
-
-		inline ~Let() {
-			Let::RemoveRef();
-		}
-
-		inline Let(T* ptr) : _ptr(ptr) {
-			Let::AddRef();
-		}
-
-		inline Let(const Let<T>& src) : _ptr(*src) {
-			Let::AddRef();
-		}
-
-		template <class S> inline Let(Let<S> src) : _ptr(reinterpret_cast<T*>(*src)) {
-			Let::AddRef();
-		}
-
-		inline Let<T>& operator=(T* src) {
-			if (src) { src->AddRef(); }
-
-			Let::RemoveRef();
-
-			_ptr = src;
-			return *this;
-		}
-
-		template <class S> inline static Let<T> Cast(S* src) {
-			return Let<T>(static_cast<T*>(src));
-		}
-
-		template <class S> inline static Let<T> Cast(const Let<S>& src) {
-			return Let<T>(reinterpret_cast<T*>(*src));
-		}
-
-		inline Let<T>& operator=(const Let<T>& src) { return *this = src._ptr; }
-		inline bool IsEmpty() const { return (_ptr == nullptr); }
-		inline operator T* () const { return _ptr; }
-		inline T* operator*() const { return _ptr; }
-		inline T* operator->() const { return _ptr; }
-
-		inline void Dispose() const {
-			if (_ptr) {
-				T* ptr = _ptr;
-				_ptr = nullptr;
-
-				ptr->RemoveRef();
-			}
-		}
-
-		template <class R> inline R& operator[](const size_t index) {
-			return _ptr[index];
-		}
-
-		template <class R> inline const R& operator[](const size_t index) const {
-			return _ptr[index];
-		}
-
-	private:
-		template <typename... Args> class Constructor : public T {
-		public:
-			explicit Constructor(Args&&... args) : T(std::forward<Args>(args)...), reference_count(0) { }
-
-		protected:
-			inline virtual int AddRef() const {
-				return Atomic::Increment(&reference_count);
-			}
-
-			inline virtual int RemoveRef() const {
-				int res = Atomic::Decrement(&reference_count);
-
-				if (!res) {
-					delete this;
-				}
-
-				return res;
-			}
-
-			inline virtual int RefCount() const {
-				return Atomic::AcquireLoad(&reference_count);
-			}
-
-			virtual ~Constructor() { }
-
-		private:
-			mutable intptr_t reference_count = 0;
-		};
-
-		inline void AddRef() const {
-			if (_ptr) { _ptr->AddRef(); }
-		}
-
-		inline void RemoveRef() const {
-			if (_ptr) { _ptr->RemoveRef(); }
-		}
-
-	protected:
-		mutable T* _ptr;
-	};
-
-	class CRTC_EXPORT Reference {
-		template <class T> friend class Let;
-
-	protected:
-		virtual ~Reference() { }
-
-		virtual int AddRef() const = 0;
-		virtual int RemoveRef() const = 0;
-		virtual int RefCount() const = 0;
-	};
-
-	/*
-	  * class Example {
-	  *   public:
-	  *     static int Foo(const char *msg) {
-	  *       printf("%s\n", msg);
-	  *       return 1337;
-	  *     }
-	  *
-	  *     int Bar(const char *msg) {
-	  *       printf("%s\n", msg);
-	  *       return 1337;
-	  *     }
-	  * };
-	  *
-	  * Example ex;
-	  *
-	  * Functor<int(const char *msg)> ex1(&Example::Foo);
-	  * Functor<int(const char *msg)> ex2 = Functor<int(const char *msg)>(&ex, &Example::Bar);
-	  * Functor<int(const char *msg)> ex3 = [](const char *msg) {
-	  *   printf("%s\n", msg);
-	  *   return 1337;
-	  * };
-	  *
-	  * int res1 = ex1("Hello World1!");
-	  * int res2 = ex2("Hello World2!");
-	  * int res3 = ex3("Hello World3!");
-	  *
-	  * printf("Ex1: %s\n", (res1 == 1337) ? "OK" : "FAILED");
-	  * printf("Ex2: %s\n", (res2 == 1337) ? "OK" : "FAILED");
-	  * printf("Ex3: %s\n", (res3 == 1337) ? "OK" : "FAILED");
-	  *
-	  */
-
-	template <typename T> class CRTC_EXPORT Functor;
-	template <typename R, typename... Args> class CRTC_EXPORT Functor<R(Args...)> {
-	public:
-		enum Flags {
-			kNone = 1 << 1,
-			kOnce = 1 << 2,
-		};
-
-		explicit Functor() : _flags(kNone) { }
-		virtual ~Functor() { }
-
-		Functor(const Functor<R(Args...)>& functor, const Functor<void()>& notifier) : _flags(kOnce), _callback(Let<VerifyWrap<void>>::New(functor, notifier)) { }
-		Functor(const Functor<R(Args...)>& functor) : _flags(functor._flags), _callback(functor._callback) { }
-		Functor(Functor&& functor) : _flags(functor._flags), _callback(std::move(functor._callback)) { }
-
-		template <class T> inline Functor(const T& functor, Flags flags = kNone) : _flags(flags), _callback(Let<Wrap<T> >::New(functor)) { }
-		template <class Object, class Method> inline Functor(Object* object, const Method& method, Flags flags = kNone) : _flags(flags), _callback(Let<ObjectWrap<Object, Method> >::New(object, method)) { }
-		template <class Object, class Method> inline Functor(const Let<Object>& object, const Method& method, Flags flags = kNone) : _flags(flags), _callback(Let<LetWrap<Object, Method> >::New(object, method)) { }
-
-		inline R operator()(Args... args) const {
-			if (!_callback.IsEmpty()) {
-				Let<Callback> callback = _callback;
-
-				if (_flags & kOnce) {
-					_callback.Dispose();
-				}
-
-				return callback->Call(std::move(args)...);
-			}
-
-			return R();
-		}
-
-		inline Functor<R(Args...)>& operator=(const Functor<R(Args...)>& functor) {
-			_flags = functor._flags;
-			_callback = std::move(functor._callback);
-			return *this;
-		}
-
-		inline bool IsEmpty() const {
-			return _callback.IsEmpty();
-		}
-
-		operator bool() const {
-			return !_callback.IsEmpty();
-		}
-
-		inline void Dispose() const {
-			_callback.Dispose();
-		}
-
-	private:
-		class Callback : virtual public Reference {
-			Callback(const Callback&) = delete;
-			Callback& operator=(const Callback&) = delete;
-			friend class Let<Callback>;
-
-		public:
-			virtual R Call(Args&&... args) const = 0;
-
-		protected:
-			explicit Callback() { }
-			~Callback() override { }
-		};
-
-		template <class T> class Wrap : public Callback {
-			Wrap(const Wrap&) = delete;
-			Wrap& operator=(const Wrap&) = delete;
-			friend class Let<Wrap>;
-
-		public:
-			inline R Call(Args&&... args) const override {
-				return _functor(std::forward<Args>(args)...);
-			}
-
-		protected:
-			explicit Wrap(const T& functor) : _functor(functor) { }
-			~Wrap() override { }
-
-			T _functor;
-		};
-
-		template <class Object, class Method> class ObjectWrap : public Callback {
-			ObjectWrap(const ObjectWrap&) = delete;
-			ObjectWrap& operator=(const ObjectWrap&) = delete;
-			friend class Let<ObjectWrap>;
-
-		public:
-			inline R Call(Args&&... args) const override {
-				if (_object) {
-					return (_object->*_method)(std::forward<Args>(args)...);
-				}
-
-				return R();
-			}
-
-		protected:
-			explicit ObjectWrap(Object* object, const Method& method) : _object(object), _method(method) { }
-			~ObjectWrap() override { }
-
-			Object* _object;
-			Method _method;
-		};
-
-		template <class Object, class Method> class LetWrap : public Callback {
-			LetWrap(const LetWrap&) = delete;
-			LetWrap& operator=(const LetWrap&) = delete;
-			friend class Let<LetWrap>;
-
-		public:
-			inline R Call(Args&&... args) const override {
-				if (!_object.IsEmpty()) {
-					return (_object->*_method)(std::forward<Args>(args)...);
-				}
-
-				return R();
-			}
-
-		protected:
-			explicit LetWrap(const Let<Object>& object, const Method& method) : _object(object), _method(method) { }
-			~LetWrap() override { }
-
-			Let<Object> _object;
-			Method _method;
-		};
-
-		template <class Type = void> class VerifyWrap : public Callback {
-			VerifyWrap(const VerifyWrap&) = delete;
-			VerifyWrap& operator=(const VerifyWrap&) = delete;
-			friend class Let<VerifyWrap>;
-
-		public:
-			inline R Call(Args&&... args) const override {
-				_notifier.Dispose();
-				return _functor(std::forward<Args>(args)...);
-			}
-
-		protected:
-			explicit VerifyWrap(const Functor<R(Args...)>& functor, const Functor<Type()>& notifier) : _functor(functor), _notifier(notifier) { }
-
-			~VerifyWrap() override {
-				_notifier();
-			}
-
-			Functor<R(Args...)> _functor;
-			Functor<Type()> _notifier;
-		};
-
-		Flags _flags;
-		Let<Callback> _callback;
-	};
-
-	typedef Functor<void()> Callback;
+	typedef synchronized_callback<> Callback;
 
 	class CRTC_EXPORT Async {
 		explicit Async() = delete;
@@ -428,9 +122,9 @@ namespace crtc {
 
 	/// \sa https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Error
 
-	class CRTC_EXPORT Error : virtual public Reference {
+	class CRTC_EXPORT Error {
 	public:
-		static Let<Error> New(std::string message, std::string fileName = __FILE__, int lineNumber = __LINE__);
+		static std::shared_ptr<Error> New(std::string message, std::string fileName = __FILE__, int lineNumber = __LINE__);
 
 		virtual std::string Message() const = 0;
 		virtual std::string FileName() const = 0;
@@ -440,128 +134,26 @@ namespace crtc {
 
 	protected:
 		explicit Error() { }
-		~Error() override { }
+		~Error() { }
 	};
 
-	typedef Functor<void(const Let<Error>& error)> ErrorCallback;
+	typedef synchronized_callback<std::shared_ptr<Error>> ErrorCallback;
 
-	/// \sa https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise
-
-	template <typename... Args> class Promise : virtual public Reference {
-		Promise<Args...>(const Promise<Args...>&) = delete;
-		Promise<Args...>& operator=(const Promise<Args...>&) = delete;
-		friend class Let<Promise<Args...>>;
-
-	public:
-		typedef Functor<void(Args...)> FullFilledCallback;
-		typedef Callback FinallyCallback;
-		typedef ErrorCallback RejectedCallback;
-		typedef Functor<void(const FullFilledCallback& resolve, const RejectedCallback& reject)> ExecutorCallback;
-
-		inline static Let<Promise<Args...>> New(const ExecutorCallback& executor) {
-			Let<Promise<Args...>> self = Let<Promise<Args...>>::New();
-
-			RejectedCallback reject([=](const Let<Error>& error) {
-				if (!self.IsEmpty()) {
-					for (const auto& callback : self->_onreject) {
-						callback(error);
-					}
-
-					for (const auto& callback : self->_onfinally) {
-						callback();
-					}
-
-					self->_onfinally.clear();
-					self->_onreject.clear();
-					self->_onresolve.clear();
-
-					self.Dispose();
-				}
-				});
-
-			RejectedCallback asyncReject([=](const Let<Error>& error) {
-				Async::Call(Callback([=]() {
-					reject(error);
-					}, [=]() {
-						reject(error);
-						}), 0);
-				});
-
-			FullFilledCallback resolve([=](Args... args) {
-				Async::Call(Callback([=]() {
-					if (!self.IsEmpty()) {
-						for (const auto& callback : self->_onresolve) {
-							callback(std::move(args)...);
-						}
-
-						for (const auto& callback : self->_onfinally) {
-							callback();
-						}
-
-						self->_onfinally.clear();
-						self->_onreject.clear();
-						self->_onresolve.clear();
-
-						self.Dispose();
-					}
-					}, [=]() {
-						asyncReject(Error::New("Reference Lost.", __FILE__, __LINE__));
-						}), 0);
-				}, [=]() {
-					asyncReject(Error::New("Reference Lost.", __FILE__, __LINE__));
-					});
-
-			if (!executor.IsEmpty()) {
-				executor(resolve, asyncReject);
-			}
-			else {
-				asyncReject(Error::New("Invalid Executor Callback.", __FILE__, __LINE__));
-			}
-
-			return self;
-		}
-
-		inline Let<Promise<Args...>> Then(const FullFilledCallback& callback) {
-			_onresolve.push_back(callback);
-			return this;
-		}
-
-		inline Let<Promise<Args...>> Catch(const RejectedCallback& callback) {
-			_onreject.push_back(callback);
-			return this;
-		}
-
-		inline Let<Promise<Args...>> Finally(const FinallyCallback& callback) {
-			_onfinally.push_back(callback);
-			return this;
-		}
-
-	private:
-		std::vector<FullFilledCallback> _onresolve;
-		std::vector<RejectedCallback> _onreject;
-		std::vector<FinallyCallback> _onfinally;
-
-	protected:
-		explicit Promise() { }
-		~Promise() override { }
-	};
-
-	template<> class Promise<void> : public Promise<> { };
 
 	/// \sa https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 
-	class CRTC_EXPORT ArrayBuffer : virtual public Reference {
+	class CRTC_EXPORT ArrayBuffer {
 		ArrayBuffer(const ArrayBuffer&) = delete;
 		ArrayBuffer& operator=(const ArrayBuffer&) = delete;
 
 	public:
-		static Let<ArrayBuffer> New(size_t byteLength = 0);
-		static Let<ArrayBuffer> New(const std::string& data);
-		static Let<ArrayBuffer> New(const uint8_t* data, size_t byteLength = 0);
+		static std::shared_ptr<ArrayBuffer> New(size_t byteLength = 0);
+		static std::shared_ptr<ArrayBuffer> New(const std::string& data);
+		static std::shared_ptr<ArrayBuffer> New(const uint8_t* data, size_t byteLength = 0);
 
 		virtual size_t ByteLength() const = 0;
 
-		virtual Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const = 0;
+		virtual std::shared_ptr<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const = 0;
 
 		virtual uint8_t* Data() = 0;
 		virtual const uint8_t* Data() const = 0;
@@ -570,7 +162,7 @@ namespace crtc {
 
 	protected:
 		explicit ArrayBuffer() { }
-		~ArrayBuffer() override { }
+		~ArrayBuffer() { }
 	};
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
@@ -598,7 +190,7 @@ namespace crtc {
 			TypedArray(typedArray.Buffer())
 		{ }
 
-		TypedArray(const Let<ArrayBuffer>& buffer, size_t byteOffset = 0, size_t byteLength = 0) :
+		TypedArray(const std::shared_ptr<ArrayBuffer>& buffer, size_t byteOffset = 0, size_t byteLength = 0) :
 			_empty(0),
 			_data(nullptr),
 			_length(0),
@@ -633,11 +225,11 @@ namespace crtc {
 			return _byteLength;
 		}
 
-		inline Let<ArrayBuffer> Buffer() const {
+		inline std::shared_ptr<ArrayBuffer> Buffer() const {
 			return _buffer;
 		}
 
-		inline Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const {
+		inline std::shared_ptr<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const {
 			if (_length) {
 				return _buffer->Slice(begin * sizeof(T), end * sizeof(T));
 			}
@@ -699,7 +291,7 @@ namespace crtc {
 		size_t _length;
 		size_t _byteOffset;
 		size_t _byteLength;
-		Let<ArrayBuffer> _buffer;
+		std::shared_ptr<ArrayBuffer> _buffer;
 	};
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
@@ -757,7 +349,7 @@ namespace crtc {
 	};
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack
-	class MediaStreamTrack : virtual public Reference {
+	class CRTC_EXPORT MediaStreamTrack {
 		MediaStreamTrack(const MediaStreamTrack&) = delete;
 		MediaStreamTrack& operator=(const MediaStreamTrack&) = delete;
 
@@ -782,27 +374,27 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack/clone
 
-		virtual Let<MediaStreamTrack> Clone() = 0;
+		virtual std::shared_ptr<MediaStreamTrack> Clone() = 0;
 
 		Callback onstarted;
 		Callback onended;
 		Callback onmute;
 		Callback onunmute;
 
-		Functor<void(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)> onAudio;
-		Functor<void(std::shared_ptr<VideoFrame> frame)> onVideo;
-		Functor<void()> onFrameDrop;
+		synchronized_callback<const void*, int, int, size_t, size_t> onAudio;
+		synchronized_callback<std::shared_ptr<VideoFrame>> onVideo;
+		synchronized_callback<> onFrameDrop;
 
 	protected:
 		explicit MediaStreamTrack();
-		~MediaStreamTrack() override;
+		~MediaStreamTrack();
 	};
 
-	typedef std::vector<Let<MediaStreamTrack>> MediaStreamTracks;
+	typedef std::vector<std::shared_ptr<MediaStreamTrack>> MediaStreamTracks;
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStream
 
-	class MediaStream : virtual public Reference {
+	class CRTC_EXPORT MediaStream {
 		MediaStream(const MediaStream&) = delete;
 		MediaStream& operator=(const MediaStream&) = delete;
 
@@ -811,12 +403,12 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/addTrack
 
-		//virtual void AddTrack(const Let<MediaStreamTrack>& track) = 0;
-		//virtual void RemoveTrack(const Let<MediaStreamTrack>& track) = 0;
+		//virtual void AddTrack(const std::shared_ptr<MediaStreamTrack>& track) = 0;
+		//virtual void RemoveTrack(const std::shared_ptr<MediaStreamTrack>& track) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/getTrackById
 
-		virtual Let<MediaStreamTrack> GetTrackById(const std::string& id) const = 0;
+		virtual std::shared_ptr<MediaStreamTrack> GetTrackById(const std::string& id) const = 0;
 
 		virtual intptr_t GetStream() = 0;
 
@@ -825,25 +417,25 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/clone
 
-		virtual Let<MediaStream> Clone() = 0;
+		virtual std::shared_ptr<MediaStream> Clone() = 0;
 
-		Functor<void(const Let<MediaStreamTrack>& track)> onaddtrack;
-		Functor<void(const Let<MediaStreamTrack>& track)> onremovetrack;
+		synchronized_callback<const std::shared_ptr<MediaStreamTrack>&> onaddtrack;
+		synchronized_callback<const std::shared_ptr<MediaStreamTrack>&> onremovetrack;
 
 	protected:
 		explicit MediaStream();
-		~MediaStream() override;
+		~MediaStream();
 	};
 
-	typedef std::vector<Let<MediaStream>> MediaStreams;
+	typedef std::vector<std::shared_ptr<MediaStream>> MediaStreams;
 
 	class CRTC_EXPORT AudioBuffer : virtual public ArrayBuffer {
 		AudioBuffer(const AudioBuffer&) = delete;
 		AudioBuffer& operator=(const AudioBuffer&) = delete;
 
 	public:
-		static Let<AudioBuffer> New(int channels = 2, int sampleRate = 44100, int bitsPerSample = 8, int frames = 1);
-		static Let<AudioBuffer> New(const Let<ArrayBuffer>& buffer, int channels = 2, int sampleRate = 44100, int bitsPerSample = 8, int frames = 1);
+		static std::shared_ptr<AudioBuffer> New(int channels = 2, int sampleRate = 44100, int bitsPerSample = 8, int frames = 1);
+		static std::shared_ptr<AudioBuffer> New(const std::shared_ptr<ArrayBuffer>& buffer, int channels = 2, int sampleRate = 44100, int bitsPerSample = 8, int frames = 1);
 
 		virtual int Channels() const = 0;
 		virtual int SampleRate() const = 0;
@@ -852,7 +444,7 @@ namespace crtc {
 
 	protected:
 		explicit AudioBuffer() { }
-		~AudioBuffer() override { }
+		~AudioBuffer() { }
 	};
 
 	class CRTC_EXPORT AudioSource : virtual public MediaStream {
@@ -860,18 +452,18 @@ namespace crtc {
 		AudioSource& operator=(const AudioSource&) = delete;
 
 	public:
-		static Let<AudioSource> New();
+		static std::shared_ptr<AudioSource> New();
 
 		virtual bool IsRunning() const = 0;
 		virtual void Stop() = 0;
 
-		virtual void Write(const Let<AudioBuffer>& buffer, ErrorCallback callback = ErrorCallback()) = 0;
+		virtual void Write(const std::shared_ptr<AudioBuffer>& buffer, ErrorCallback callback = ErrorCallback()) = 0;
 
 		Callback ondrain;
 
 	protected:
 		explicit AudioSource();
-		~AudioSource() override;
+		~AudioSource();
 	};
 
 	class CRTC_EXPORT ImageBuffer : public ArrayBuffer {
@@ -879,8 +471,8 @@ namespace crtc {
 		ImageBuffer& operator=(const ImageBuffer&) = delete;
 
 	public:
-		static Let<ImageBuffer> New(int width, int height);
-		static Let<ImageBuffer> New(const Let<ArrayBuffer>& buffer, int width, int height);
+		static std::shared_ptr<ImageBuffer> New(int width, int height);
+		static std::shared_ptr<ImageBuffer> New(const std::shared_ptr<ArrayBuffer>& buffer, int width, int height);
 
 		static size_t ByteLength(int height, int stride_y, int stride_u, int stride_v);
 		static size_t ByteLength(int width, int height);
@@ -898,7 +490,7 @@ namespace crtc {
 
 	protected:
 		explicit ImageBuffer() { }
-		~ImageBuffer() override { }
+		~ImageBuffer() { }
 	};
 
 	class CRTC_EXPORT VideoSource : virtual public MediaStream {
@@ -906,7 +498,7 @@ namespace crtc {
 		VideoSource& operator=(const VideoSource&) = delete;
 
 	public:
-		static Let<VideoSource> New(int width = 1280, int height = 720, float fps = 30);
+		static std::shared_ptr<VideoSource> New(int width = 1280, int height = 720, float fps = 30);
 
 		virtual bool IsRunning() const = 0;
 		virtual void Stop() = 0;
@@ -915,23 +507,23 @@ namespace crtc {
 		virtual int Height() const = 0;
 		virtual float Fps() const = 0;
 
-		virtual void Write(const Let<ImageBuffer>& frame, ErrorCallback callback = ErrorCallback()) = 0;
+		virtual void Write(const std::shared_ptr<ImageBuffer>& frame, ErrorCallback callback = ErrorCallback()) = 0;
 
 		Callback ondrain;
 
 	protected:
 		explicit VideoSource();
-		~VideoSource() override;
+		~VideoSource();
 	};
 
 	/// \sa https://developer.mozilla.org/en/docs/Web/API/RTCDataChannel
 
-	class CRTC_EXPORT RTCDataChannel : virtual public Reference {
+	class CRTC_EXPORT RTCDataChannel {
 		RTCDataChannel(const RTCDataChannel&) = delete;
 		RTCDataChannel& operator=(const RTCDataChannel&) = delete;
 
 	public:
-		typedef Functor<void(const Let<ArrayBuffer>& buffer, bool binary)> MessageCallback;
+		typedef synchronized_callback<std::shared_ptr<ArrayBuffer>, bool> MessageCallback;
 
 		enum State {
 			kConnecting,
@@ -987,7 +579,7 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/send
 
-		virtual void Send(const Let<ArrayBuffer>& data, bool binary = true) = 0;
+		virtual void Send(const std::shared_ptr<ArrayBuffer>& data, bool binary = true) = 0;
 
 		virtual void Send(const unsigned char* data, size_t length, bool binary = true) = 0;
 
@@ -1013,12 +605,12 @@ namespace crtc {
 
 	protected:
 		explicit RTCDataChannel();
-		~RTCDataChannel() override;
+		~RTCDataChannel();
 	};
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
 
-	class CRTC_EXPORT RTCPeerConnection : virtual public Reference {
+	class CRTC_EXPORT RTCPeerConnection {
 		RTCPeerConnection(const RTCPeerConnection&) = delete;
 		RTCPeerConnection& operator=(const RTCPeerConnection&) = delete;
 
@@ -1112,7 +704,7 @@ namespace crtc {
 
 		// \sa https://developer.mozilla.org/en/docs/Web/API/RTCIceCandidate
 
-		struct RTCIceCandidate {
+		struct CRTC_EXPORT RTCIceCandidate {
 			std::string candidate;
 			std::string sdpMid;
 			uint32_t sdpMLineIndex;
@@ -1120,7 +712,7 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCIceServer
 
-		struct RTCIceServer {
+		struct CRTC_EXPORT RTCIceServer {
 			std::string credential;
 			std::string credentialType;
 			std::string username;
@@ -1129,7 +721,7 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCConfiguration
 
-		struct RTCConfiguration {
+		struct CRTC_EXPORT RTCConfiguration {
 			explicit RTCConfiguration();
 			~RTCConfiguration();
 
@@ -1158,30 +750,30 @@ namespace crtc {
 		struct RTCAnswerOptions : RTCOfferAnswerOptions {
 		};
 
-		typedef Functor<void(const Let<MediaStream>& stream)> StreamCallback;
-		typedef Functor<void(const Let<MediaStreamTrack>& track)> TrackCallback;
-		typedef Functor<void(const Let<RTCDataChannel>& dataChannel)> DataChannelCallback;
-		typedef Functor<void(const RTCIceCandidate& candidate)> IceCandidateCallback;
+		typedef synchronized_callback<const std::shared_ptr<MediaStream>> StreamCallback;
+		typedef synchronized_callback<const std::shared_ptr<MediaStreamTrack>> TrackCallback;
+		typedef synchronized_callback<const std::shared_ptr<RTCDataChannel>> DataChannelCallback;
+		typedef synchronized_callback<const RTCIceCandidate&> IceCandidateCallback;
 
-		static Let<RTCPeerConnection> New(const RTCConfiguration& config = RTCConfiguration());
+		static std::shared_ptr<RTCPeerConnection> New(const RTCConfiguration& config = RTCConfiguration());
 
-		virtual Let<RTCDataChannel> CreateDataChannel(const std::string& label, const RTCDataChannelInit& options = RTCDataChannelInit()) = 0;
+		virtual std::shared_ptr<RTCDataChannel> CreateDataChannel(const std::string& label, const RTCDataChannelInit& options = RTCDataChannelInit()) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addIceCandidate
 
-		virtual Let<Promise<void>> AddIceCandidate(const RTCIceCandidate& candidate) = 0;
+		virtual std::shared_ptr<Error> AddIceCandidate(const RTCIceCandidate& candidate) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream
 
-		virtual void AddStream(const Let<MediaStream>& stream) = 0;
+		virtual void AddStream(const std::shared_ptr<MediaStream>& stream) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createAnswer
 
-		virtual Let<Promise<RTCSessionDescription>> CreateAnswer(const RTCAnswerOptions& options = RTCAnswerOptions()) = 0;
+		virtual std::shared_ptr<RTCSessionDescription> CreateAnswer(const RTCAnswerOptions& options = RTCAnswerOptions()) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createOffer
 
-		virtual Let<Promise<RTCSessionDescription>> CreateOffer(const RTCOfferOptions& options = RTCOfferOptions()) = 0;
+		virtual std::shared_ptr<RTCSessionDescription> CreateOffer(const RTCOfferOptions& options = RTCOfferOptions()) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getLocalStreams
 
@@ -1193,7 +785,7 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/removeStream
 
-		virtual void RemoveStream(const Let<MediaStream>& stream) = 0;
+		virtual void RemoveStream(const std::shared_ptr<MediaStream>& stream) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/setConfiguration
 
@@ -1201,11 +793,11 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/setLocalDescription
 
-		virtual Let<Promise<void>> SetLocalDescription(const RTCSessionDescription& sdp) = 0;
+		virtual std::shared_ptr<Error> SetLocalDescription(const RTCSessionDescription& sdp) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/setRemoteDescription
 
-		virtual Let<Promise<void>> SetRemoteDescription(const RTCSessionDescription& sdp) = 0;
+		virtual std::shared_ptr<Error> SetRemoteDescription(const RTCSessionDescription& sdp) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/close
 
@@ -1236,7 +828,7 @@ namespace crtc {
 
 	protected:
 		explicit RTCPeerConnection();
-		~RTCPeerConnection() override;
+		~RTCPeerConnection();
 	};
 } // namespace crtc
 

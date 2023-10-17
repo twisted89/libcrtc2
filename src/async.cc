@@ -31,7 +31,7 @@
 using namespace crtc;
 
 void Async::Call(Callback callback, int delayMs) {
-	Let<Event> event = Event::New();
+	auto event = Event::New();
 
 	rtc::Thread* target = rtc::ThreadManager::Instance()->CurrentThread();
 

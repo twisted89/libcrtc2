@@ -31,162 +31,163 @@
 using namespace crtc;
 
 void MediaStreamTrackInternal::OnChanged() {
-  switch (_source->state()) {
-    case webrtc::MediaSourceInterface::kInitializing:
-      break;
-    case webrtc::MediaSourceInterface::kLive:
-      switch (_state) {
-        case webrtc::MediaSourceInterface::kInitializing:
-          OnStarted();
-          break;
-        case webrtc::MediaSourceInterface::kLive:
-          break;
-        case webrtc::MediaSourceInterface::kEnded:
-          break;
-        case webrtc::MediaSourceInterface::kMuted:
-          OnUnMute();
-          break;
-      }
+	switch (_source->state()) {
+	case webrtc::MediaSourceInterface::kInitializing:
+		break;
+	case webrtc::MediaSourceInterface::kLive:
+		switch (_state) {
+		case webrtc::MediaSourceInterface::kInitializing:
+			OnStarted();
+			break;
+		case webrtc::MediaSourceInterface::kLive:
+			break;
+		case webrtc::MediaSourceInterface::kEnded:
+			break;
+		case webrtc::MediaSourceInterface::kMuted:
+			OnUnMute();
+			break;
+		}
 
-      break;
-    case webrtc::MediaSourceInterface::kEnded:
-      OnEnded();
-      break;
-    case webrtc::MediaSourceInterface::kMuted:
-      OnMute();
-      break;
-  }
+		break;
+	case webrtc::MediaSourceInterface::kEnded:
+		OnEnded();
+		break;
+	case webrtc::MediaSourceInterface::kMuted:
+		OnMute();
+		break;
+	}
 }
 
-webrtc::MediaStreamTrackInterface *MediaStreamTrackInternal::New(const Let<MediaStreamTrack> &track) {
-  if (!track.IsEmpty()) {
-    Let<MediaStreamTrackInternal> track_internal(track);
-    return track_internal->_track.get();
-  }
+webrtc::MediaStreamTrackInterface* MediaStreamTrackInternal::New(const std::shared_ptr<MediaStreamTrack>& track) {
+	if (track) {
+		MediaStreamTrackInternal track_internal(track);
+		return track_internal._track.get();
+	}
 
-  return nullptr;
+	return nullptr;
 }
 
-Let<MediaStreamTrack> MediaStreamTrackInternal::New(webrtc::MediaStreamTrackInterface *track) {
-  if (track) {
-    MediaStreamTrack::Type kind;
-    webrtc::MediaSourceInterface *source = nullptr;
+std::shared_ptr<MediaStreamTrack> MediaStreamTrackInternal::New(const webrtc::MediaStreamTrackInterface* track) {
+	if (track) {
+		MediaStreamTrack::Type kind;
+		webrtc::MediaSourceInterface* source = nullptr;
 
-    if (track->kind().compare(webrtc::MediaStreamTrackInterface::kAudioKind) == 0) {
-      webrtc::AudioTrackInterface *audio = static_cast<webrtc::AudioTrackInterface*>(track);
-      source = audio->GetSource();
-      kind = MediaStreamTrack::kAudio;
-    } else {
-      webrtc::VideoTrackInterface *video = static_cast<webrtc::VideoTrackInterface*>(track);
-      source = video->GetSource();
-      kind = MediaStreamTrack::kVideo;
-    }
+		if (track->kind().compare(webrtc::MediaStreamTrackInterface::kAudioKind) == 0) {
+			auto audio = static_cast<const webrtc::AudioTrackInterface*>(track);
+			source = audio->GetSource();
+			kind = MediaStreamTrack::kAudio;
+		}
+		else {
+			auto video = static_cast<const webrtc::VideoTrackInterface*>(track);
+			source = video->GetSource();
+			kind = MediaStreamTrack::kVideo;
+		}
 
-    return Let<MediaStreamTrackInternal>::New(kind, track, source);
-  }
+		return std::make_shared<MediaStreamTrackInternal>(kind, track, source);
+	}
 
-  return Let<MediaStreamTrack>();
+	return nullptr;
 }
 
-MediaStreamTrackInternal::MediaStreamTrackInternal(MediaStreamTrack::Type kind, webrtc::MediaStreamTrackInterface *track, webrtc::MediaSourceInterface *source) : 
-  _kind(kind),
-  _track(track),
-  _source(source),
-  _state(_source->state())
+MediaStreamTrackInternal::MediaStreamTrackInternal(MediaStreamTrack::Type kind, webrtc::MediaStreamTrackInterface* track, webrtc::MediaSourceInterface* source) :
+	_kind(kind),
+	_track(track),
+	_source(source),
+	_state(_source->state())
 {
-  _source->RegisterObserver(this);
+	_source->RegisterObserver(this);
 
-  if (kind == MediaStreamTrack::Type::kAudio) {
-      webrtc::AudioTrackInterface* audio = static_cast<webrtc::AudioTrackInterface*>(track);
-      audio->AddSink(this);
-  }
-  else if (kind == MediaStreamTrack::Type::kVideo) {
-      webrtc::VideoTrackInterface* video = static_cast<webrtc::VideoTrackInterface*>(track);
-      rtc::VideoSinkWants wants;
-      video->AddOrUpdateSink(this, wants);
-  }
+	if (kind == MediaStreamTrack::Type::kAudio) {
+		webrtc::AudioTrackInterface* audio = static_cast<webrtc::AudioTrackInterface*>(track);
+		audio->AddSink(this);
+	}
+	else if (kind == MediaStreamTrack::Type::kVideo) {
+		webrtc::VideoTrackInterface* video = static_cast<webrtc::VideoTrackInterface*>(track);
+		rtc::VideoSinkWants wants;
+		video->AddOrUpdateSink(this, wants);
+	}
 }
 
-MediaStreamTrackInternal::MediaStreamTrackInternal(const Let<MediaStreamTrackInternal> &track) : 
-  MediaStreamTrackInternal(track->_kind, track->_track.get(), track->_source.get())
+MediaStreamTrackInternal::MediaStreamTrackInternal(const std::shared_ptr<MediaStreamTrackInternal>& track) :
+	MediaStreamTrackInternal(track->_kind, track->_track.get(), track->_source.get())
 { }
 
 MediaStreamTrackInternal::~MediaStreamTrackInternal() {
-  _source->UnregisterObserver(this);
+	_source->UnregisterObserver(this);
 }
 
 
 void MediaStreamTrackInternal::OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)
 {
-    onAudio(audio_data, bits_per_sample, sample_rate, number_of_channels, number_of_frames);
+	onAudio(audio_data, bits_per_sample, sample_rate, number_of_channels, number_of_frames);
 }
 
 void MediaStreamTrackInternal::OnFrame(const webrtc::VideoFrame& frame) {
-    onVideo(std::make_shared<VideoFrameInternal>(frame));
+	onVideo(std::make_shared<VideoFrameInternal>(frame));
 }
 
 void MediaStreamTrackInternal::OnDiscardedFrame() {
-    onFrameDrop();
+	onFrameDrop();
 }
 
 void MediaStreamTrackInternal::OnConstraintsChanged(const webrtc::VideoTrackSourceConstraints& constraints) {
-    (void)constraints;
+	(void)constraints;
 }
 
 void MediaStreamTrackInternal::OnStarted() {
-    onstarted();
+	onstarted();
 }
 
 void MediaStreamTrackInternal::OnUnMute() {
-    onunmute();
+	onunmute();
 }
 
 void MediaStreamTrackInternal::OnMute() {
-    onmute();
+	onmute();
 }
 
 void MediaStreamTrackInternal::OnEnded() {
-    onended();
+	onended();
 }
 
 bool MediaStreamTrackInternal::Enabled() const {
-  return _track->enabled();
+	return _track->enabled();
 }
 
 bool MediaStreamTrackInternal::Remote() const {
-  return _source->remote();
+	return _source->remote();
 }
 
 bool MediaStreamTrackInternal::Muted() const {
-  return (_source->state() == webrtc::MediaSourceInterface::kMuted);
+	return (_source->state() == webrtc::MediaSourceInterface::kMuted);
 }
 
 std::string MediaStreamTrackInternal::Id() const {
-  return _track->id();
+	return _track->id();
 }
 
 MediaStreamTrack::Type MediaStreamTrackInternal::Kind() const {
-  return _kind;
+	return _kind;
 }
 
 MediaStreamTrack::State MediaStreamTrackInternal::ReadyState() const {
-  if (_track->state() == webrtc::MediaStreamTrackInterface::kEnded || _source->state() == webrtc::MediaSourceInterface::kEnded) {
-    return MediaStreamTrack::kEnded;
-  }
+	if (_track->state() == webrtc::MediaStreamTrackInterface::kEnded || _source->state() == webrtc::MediaSourceInterface::kEnded) {
+		return MediaStreamTrack::kEnded;
+	}
 
-  return MediaStreamTrack::kLive;
+	return MediaStreamTrack::kLive;
 }
 
-Let<MediaStreamTrack> MediaStreamTrackInternal::Clone() {
-  return Let<MediaStreamTrackInternal>::New(_kind, _track.get(), _source.get());
+std::shared_ptr<MediaStreamTrack> MediaStreamTrackInternal::Clone() {
+	return std::make_shared<MediaStreamTrackInternal>(_kind, _track.get(), _source.get());
 }
 
 rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> MediaStreamTrackInternal::GetTrack() const {
-  return _track;
+	return _track;
 }
 
 rtc::scoped_refptr<webrtc::MediaSourceInterface> MediaStreamTrackInternal::GetSource() const {
-  return _source;
+	return _source;
 }
 
 MediaStreamTrack::MediaStreamTrack() {
@@ -194,5 +195,5 @@ MediaStreamTrack::MediaStreamTrack() {
 }
 
 MediaStreamTrack::~MediaStreamTrack() {
-  
+
 }

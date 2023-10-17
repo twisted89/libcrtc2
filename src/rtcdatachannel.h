@@ -48,7 +48,7 @@ namespace crtc {
 		std::string Protocol() override;
 		RTCDataChannel::State ReadyState() override;
 		void Close() override;
-		void Send(const Let<ArrayBuffer>& data, bool binary = true) override;
+		void Send(const std::shared_ptr<ArrayBuffer>& data, bool binary = true) override;
 		void Send(const unsigned char* data, size_t length, bool binary = true) override;
 
 	protected:
@@ -59,17 +59,16 @@ namespace crtc {
 		void OnBufferedAmountChange(uint64_t previous_amount) override;
 
 		uint64_t _threshold;
-		Let<Event> _event;
+		std::shared_ptr<Event> _event;
 		rtc::scoped_refptr<webrtc::DataChannelInterface> _channel;
 	};
 
 	class WrapRtcBuffer : public ArrayBuffer {
-		friend class Let<WrapRtcBuffer>;
 
 	public:
 		size_t ByteLength() const override;
 
-		Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
+		std::shared_ptr<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
 
 		uint8_t* Data() override;
 		const uint8_t* Data() const override;
@@ -77,7 +76,7 @@ namespace crtc {
 		std::string ToString() const override;
 	protected:
 		explicit WrapRtcBuffer(const rtc::CopyOnWriteBuffer& buffer);
-		~WrapRtcBuffer() override;
+		~WrapRtcBuffer();
 
 		rtc::CopyOnWriteBuffer _data;
 	};

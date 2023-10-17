@@ -29,20 +29,20 @@
 
 using namespace crtc;
 
-Let<MediaStream> MediaStreamInternal::New(webrtc::MediaStreamInterface* stream) {
+std::shared_ptr<MediaStream> MediaStreamInternal::New(webrtc::MediaStreamInterface* stream) {
     if (stream) {
-        return Let<MediaStreamInternal>::New(stream);
+        return std::make_shared<MediaStreamInternal>(stream);
     }
 
-    return Let<MediaStream>();
+    return nullptr;
 }
 
-Let<MediaStream> MediaStreamInternal::New(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
+std::shared_ptr<MediaStream> MediaStreamInternal::New(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
   if (stream.get()) {
-    return Let<MediaStreamInternal>::New(stream);
+    return std::make_shared<MediaStreamInternal>(stream);
   }
 
-  return Let<MediaStream>();
+  return nullptr;
 }
 
 MediaStreamInternal::MediaStreamInternal(webrtc::MediaStreamInterface* stream) :
@@ -105,7 +105,7 @@ void MediaStreamInternal::RemoveTrack(const Let<MediaStreamTrack> &track) {
 }
 */
 
-Let<MediaStreamTrack> MediaStreamInternal::GetTrackById(const std::string &id) const {
+std::shared_ptr<MediaStreamTrack> MediaStreamInternal::GetTrackById(const std::string &id) const {
   rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = _stream->FindAudioTrack(id);
 
   if (!track.get()) {
@@ -116,7 +116,7 @@ Let<MediaStreamTrack> MediaStreamInternal::GetTrackById(const std::string &id) c
     return MediaStreamTrackInternal::New(track.get());
   }
 
-  return Let<MediaStream>();
+  return nullptr;
 }
 
 intptr_t MediaStreamInternal::GetStream()
@@ -148,8 +148,8 @@ MediaStreamTracks MediaStreamInternal::GetVideoTracks() const {
   return tracks;
 }
 
-Let<MediaStream> MediaStreamInternal::Clone() {
-  return Let<MediaStreamInternal>::New(_stream);
+std::shared_ptr<MediaStream> MediaStreamInternal::Clone() {
+  return std::make_shared<MediaStreamInternal>(_stream);
 }
 
 void MediaStreamInternal::OnChanged() {

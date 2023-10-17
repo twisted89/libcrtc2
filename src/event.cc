@@ -29,8 +29,8 @@
 
 using namespace crtc;
 
-Let<Event> Event::New() {
-  return Let<Event>::New();
+std::shared_ptr<Event> Event::New() {
+  return std::make_shared<Event>();
 }
 
 Event::Event() {

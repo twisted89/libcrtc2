@@ -4,17 +4,16 @@
 #include "crtc.h"
 
 namespace crtc {
-	class Event : virtual public Reference {
+	class Event {
 		Event(const Event&) = delete;
 		Event& operator=(const Event&) = delete;
-		friend class Let<Event>;
 
 	public:
-		static Let<Event> New();
+		static std::shared_ptr<Event> New();
 
 	protected:
 		explicit Event();
-		~Event() override;
+		~Event();
 	};
 }
 

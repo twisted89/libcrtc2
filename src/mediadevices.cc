@@ -157,9 +157,9 @@ std::vector<blink::WebMediaDeviceInfo> MediaDevices::EnumerateDevices() {
 }
 #include <third_party/blink/renderer/modules/mediastream/media_stream_constraints_util.h>
 
-Let<MediaStream> MediaDevices::GetUserMedia(const MediaStreamConstraints& constraints) {
+std::shared_ptr<MediaStream> MediaDevices::GetUserMedia(const MediaStreamConstraints& constraints) {
 	if (!constraints.enableAudio && constraints.enableVideo) {
-		return Let<MediaStream>();
+		return nullptr;
 	}
 
 	rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track;
@@ -201,10 +201,10 @@ Let<MediaStream> MediaDevices::GetUserMedia(const MediaStreamConstraints& constr
 		}
 	}
 
-	return Let<MediaStream>(); // TODO(): Reject!
+	return nullptr; // TODO(): Reject!
 }
 
-Let<MediaStream> MediaDevices::GetUserMedia() {
+std::shared_ptr<MediaStream> MediaDevices::GetUserMedia() {
 	MediaStreamConstraints constraints;
 
 	constraints.enableAudio = true;

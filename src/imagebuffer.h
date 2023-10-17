@@ -34,11 +34,10 @@
 
 namespace crtc {
 	class ImageBufferInternal : public ImageBuffer, public ArrayBufferInternal {
-		friend class Let<ImageBufferInternal>;
 
 	public:
-		static Let<ImageBuffer> New(const Let<ArrayBuffer>& buffer, int width, int height);
-		static Let<ImageBuffer> New(int width = 0, int height = 0);
+		static std::shared_ptr<ImageBuffer> New(const std::shared_ptr<ArrayBuffer>& buffer, int width, int height);
+		static std::shared_ptr<ImageBuffer> New(int width = 0, int height = 0);
 
 		int Width() const override;
 		int Height() const override;
@@ -53,7 +52,7 @@ namespace crtc {
 
 		size_t ByteLength() const override;
 
-		Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
+		std::shared_ptr<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
 
 		uint8_t* Data() override;
 		const uint8_t* Data() const override;
@@ -61,9 +60,9 @@ namespace crtc {
 		std::string ToString() const override;
 
 	protected:
-		explicit ImageBufferInternal(const Let<ArrayBuffer>& buffer, int width, int height);
+		explicit ImageBufferInternal(const std::shared_ptr<ArrayBuffer>& buffer, int width, int height);
 		ImageBufferInternal(int width = 0, int height = 0);
-		~ImageBufferInternal() override;
+		~ImageBufferInternal();
 
 		int _width;
 		int _height;
@@ -75,7 +74,7 @@ namespace crtc {
 
 	class WrapImageBuffer : public webrtc::VideoFrameBuffer {
 	public:
-		static rtc::scoped_refptr<webrtc::VideoFrameBuffer> New(const Let<ImageBuffer>& source);
+		static rtc::scoped_refptr<webrtc::VideoFrameBuffer> New(const std::shared_ptr<ImageBuffer>& source);
 
 		virtual Type type() const override;
 
@@ -86,17 +85,16 @@ namespace crtc {
 		rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
 
 	protected:
-		explicit WrapImageBuffer(const Let<ImageBuffer>& source);
+		explicit WrapImageBuffer(const std::shared_ptr<ImageBuffer>& source);
 		~WrapImageBuffer() override;
 
-		Let<ImageBuffer> _source;
+		std::shared_ptr<ImageBuffer> _source;
 	};
 
 	class WrapVideoFrameBuffer : public ImageBuffer {
-		friend class Let<WrapVideoFrameBuffer>;
 
 	public:
-		static Let<ImageBuffer> New(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& vfb);
+		static std::shared_ptr<ImageBuffer> New(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& vfb);
 
 		int Width() const override;
 		int Height() const override;
@@ -106,7 +104,7 @@ namespace crtc {
 
 		size_t ByteLength() const override;
 
-		Let<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
+		std::shared_ptr<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
 
 		uint8_t* Data() override;
 		const uint8_t* Data() const override;
@@ -114,14 +112,14 @@ namespace crtc {
 		std::string ToString() const override;
 	protected:
 		explicit WrapVideoFrameBuffer(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& source);
-		~WrapVideoFrameBuffer() override;
+		~WrapVideoFrameBuffer();
 
 		rtc::scoped_refptr<webrtc::VideoFrameBuffer> _vfb;
 	};
 
 	class WrapBufferToVideoFrameBuffer : public webrtc::PlanarYuv8Buffer {
 	public:
-		static rtc::scoped_refptr<webrtc::VideoFrameBuffer> New(const Let<ArrayBuffer>& source, int width, int height);
+		static rtc::scoped_refptr<webrtc::VideoFrameBuffer> New(const std::shared_ptr<ArrayBuffer>& source, int width, int height);
 
 		int width() const override;
 		int height() const override;
@@ -140,10 +138,10 @@ namespace crtc {
 		virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
 
 	protected:
-		explicit WrapBufferToVideoFrameBuffer(const Let<ArrayBuffer>& source, int width, int height);
-		~WrapBufferToVideoFrameBuffer() override;
+		explicit WrapBufferToVideoFrameBuffer(const std::shared_ptr<ArrayBuffer>& source, int width, int height);
+		~WrapBufferToVideoFrameBuffer();
 
-		Let<ArrayBuffer> _source;
+		std::shared_ptr<ArrayBuffer> _source;
 
 		int _width;
 		int _height;

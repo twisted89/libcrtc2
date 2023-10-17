@@ -49,7 +49,7 @@ namespace crtc {
 
 		sigslot::signal0<> Drain;
 
-		inline void Write(const Let<AudioBuffer>& buffer, ErrorCallback callback) {
+		inline void Write(const std::shared_ptr<AudioBuffer>& buffer, ErrorCallback callback) {
 			webrtc::MutexLock lock(&lock_);
 
 			if (Recording()) {
@@ -103,13 +103,13 @@ namespace crtc {
 			explicit Queue()
 			{ }
 
-			Queue(const Let<AudioBuffer>& audio_buffer, const ErrorCallback& errorCallback) :
+			Queue(const std::shared_ptr<AudioBuffer>& audio_buffer, const ErrorCallback& errorCallback) :
 				buffer(audio_buffer),
 				callback(errorCallback),
 				timestamp(rtc::TimeNanos())
 			{ }
 
-			Let<AudioBuffer> buffer;
+			std::shared_ptr<AudioBuffer> buffer;
 			ErrorCallback callback;
 			int64_t timestamp;
 		};
@@ -142,7 +142,7 @@ namespace crtc {
 					_callback->RecordedDataIsAvailable(pending.buffer->Data(), pending.buffer->ByteLength(), pending.buffer->BitsPerSample() / 8, pending.buffer->Channels(), pending.buffer->SampleRate(), 0, 0, 0, false, new_mic_level);
 				}
 
-				pending.callback(Let<Error>());
+				pending.callback(std::shared_ptr<Error>());
 
 				{
 					webrtc::MutexLock lock(&lock_);

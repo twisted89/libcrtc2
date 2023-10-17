@@ -104,7 +104,7 @@ void RTCDataChannelInternal::Close() {
 	_channel->Close();
 }
 
-void RTCDataChannelInternal::Send(const Let<ArrayBuffer>& data, bool binary) {
+void RTCDataChannelInternal::Send(const std::shared_ptr<ArrayBuffer>& data, bool binary) {
 	rtc::CopyOnWriteBuffer buffer(data->Data(), data->ByteLength());
 	webrtc::DataBuffer dataBuffer(buffer, binary);
 
@@ -159,13 +159,13 @@ void RTCDataChannelInternal::OnStateChange() {
 		break;
 	case webrtc::DataChannelInterface::kClosed:
 		onclose();
-		_event.Dispose();
+		_event.reset();
 		break;
 	}
 }
 
 void RTCDataChannelInternal::OnMessage(const webrtc::DataBuffer& buffer) {
-	onmessage(Let<WrapRtcBuffer>::New(buffer.data), buffer.binary);
+	onmessage(WrapRtcBuffer::New(buffer.data.data(), buffer.size()), buffer.binary);
 }
 
 void RTCDataChannelInternal::OnBufferedAmountChange(uint64_t previous_amount) {
@@ -186,12 +186,12 @@ size_t WrapRtcBuffer::ByteLength() const {
 	return _data.size();
 }
 
-Let<ArrayBuffer> WrapRtcBuffer::Slice(size_t begin, size_t end) const {
+std::shared_ptr<ArrayBuffer> WrapRtcBuffer::Slice(size_t begin, size_t end) const {
 	if (begin <= end && end <= _data.size()) {
-		return Let<ArrayBufferInternal>::New(_data.data() + begin, ((!end) ? _data.size() : end - begin));
+		return std::make_shared<ArrayBufferInternal>(_data.data() + begin, ((!end) ? _data.size() : end - begin));
 	}
 
-	return Let<ArrayBuffer>();
+	return nullptr;
 }
 
 uint8_t* WrapRtcBuffer::Data() {

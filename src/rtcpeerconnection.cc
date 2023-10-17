@@ -93,7 +93,7 @@ void RTCPeerConnectionInternal::Dispose() {
 RTCPeerConnectionInternal::RTCPeerConnectionInternal(const RTCConfiguration& config) : _factory(factory) {
 	webrtc::PeerConnectionInterface::RTCConfiguration cfg(webrtc::PeerConnectionInterface::RTCConfigurationType::kAggressive);
 
-	Let<Error> error = ParseConfiguration(config, &cfg);
+	auto error = ParseConfiguration(config, &cfg);
 
 	if (error.IsEmpty()) {
 		//_socket = _factory->CreatePeerConnection(cfg, nullptr, nullptr, this);
@@ -127,10 +127,10 @@ Let<RTCDataChannel> RTCPeerConnectionInternal::CreateDataChannel(const std::stri
 	auto error_or_datachannel = _socket->CreateDataChannelOrError(label, &init);
 	if (!error_or_datachannel.ok())
 	{
-		return Let<RTCDataChannel>();
+		return nullptr;
 	}
 
-	return Let<RTCDataChannelInternal>::New(std::move(error_or_datachannel.value()));	
+	return std::make_shared<RTCDataChannelInternal>(std::move(error_or_datachannel.value()));	
 }
 
 Let<Promise<void> > RTCPeerConnectionInternal::AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) {
@@ -270,9 +270,9 @@ MediaStreams RTCPeerConnectionInternal::GetRemoteStreams() {
 	rtc::scoped_refptr<webrtc::StreamCollectionInterface> rstreams(_socket->remote_streams());
 
 	for (size_t index = 0; index < rstreams->count(); index++) {
-		Let<MediaStream> stream = MediaStreamInternal::New(rstreams->at(index));
+		auto stream = MediaStreamInternal::New(rstreams->at(index));
 
-		if (!stream.IsEmpty()) {
+		if (stream) {
 			streams.push_back(stream);
 		}
 	}
@@ -293,7 +293,7 @@ void RTCPeerConnectionInternal::RemoveTrack(const Let<RTCPeerConnection::RTCRtpS
 void RTCPeerConnectionInternal::SetConfiguration(const RTCPeerConnection::RTCConfiguration& config) {
 	webrtc::PeerConnectionInterface::RTCConfiguration cfg(webrtc::PeerConnectionInterface::RTCConfigurationType::kAggressive);
 
-	Let<Error> error = ParseConfiguration(config, &cfg);
+	auto error = ParseConfiguration(config, &cfg);
 
 	if (error.IsEmpty()) {
 		_socket->SetConfiguration(cfg);
@@ -483,9 +483,9 @@ void RTCPeerConnectionInternal::OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpRece
 
 void RTCPeerConnectionInternal::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
 	if (data_channel.get()) {
-		Let<RTCDataChannel> channel = Let<RTCDataChannelInternal>::New(data_channel);
+		auto channel = std::make_shared<RTCDataChannelInternal>(data_channel);
 
-		if (!channel.IsEmpty()) {
+		if (channel) {
 			ondatachannel(channel);
 		}
 	}
@@ -539,8 +539,8 @@ void RTCPeerConnectionInternal::OnRemoveStream(webrtc::MediaStreamInterface* str
 // <- DEPRECATED //
 
 
-Let<RTCPeerConnection> RTCPeerConnection::New(const RTCPeerConnection::RTCConfiguration& config) {
-	return Let<RTCPeerConnectionInternal>::New(config);
+std::shared_ptr<RTCPeerConnection> RTCPeerConnection::New(const RTCPeerConnection::RTCConfiguration& config) {
+	return std::make_shared<RTCPeerConnectionInternal>(config);
 }
 
 RTCPeerConnection::RTCConfiguration::RTCConfiguration() :
