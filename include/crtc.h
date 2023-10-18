@@ -697,7 +697,7 @@ namespace crtc {
 	public:
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createDataChannel#RTCDataChannelInit_dictionary
 
-		struct RTCDataChannelInit {
+		struct CRTC_EXPORT RTCDataChannelInit {
 			RTCDataChannelInit() :
 				id(-1),
 				maxPacketLifeTime(-1),
@@ -716,7 +716,7 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCSessionDescription
 
-		struct RTCSessionDescription {
+		struct CRTC_EXPORT RTCSessionDescription {
 			enum RTCSdpType {
 				kAnswer,
 				kOffer,
@@ -815,19 +815,19 @@ namespace crtc {
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createOffer#RTCOfferOptions_dictionary
 		/// \sa https://w3c.github.io/webrtc-pc/#idl-def-rtcofferansweroptions
 
-		struct RTCOfferAnswerOptions {
+		struct CRTC_EXPORT RTCOfferAnswerOptions {
 			bool voiceActivityDetection;
 		};
 
 		/// \sa https://w3c.github.io/webrtc-pc/#idl-def-rtcofferoptions
 
-		struct RTCOfferOptions : RTCOfferAnswerOptions {
+		struct CRTC_EXPORT RTCOfferOptions : RTCOfferAnswerOptions {
 			bool iceRestart;
 		};
 
 		/// \sa https://w3c.github.io/webrtc-pc/#idl-def-rtcansweroptions
 
-		struct RTCAnswerOptions : RTCOfferAnswerOptions {
+		struct CRTC_EXPORT RTCAnswerOptions : RTCOfferAnswerOptions {
 		};
 
 		typedef synchronized_callback<const std::shared_ptr<MediaStream>> StreamCallback;
