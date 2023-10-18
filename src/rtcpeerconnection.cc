@@ -95,7 +95,7 @@ RTCPeerConnectionInternal::RTCPeerConnectionInternal(const RTCConfiguration& con
 
 	auto error = ParseConfiguration(config, &cfg);
 
-	if (error.IsEmpty()) {
+	if (!error) {
 		//_socket = _factory->CreatePeerConnection(cfg, nullptr, nullptr, this);
 		webrtc::PeerConnectionDependencies pc_dependencies(this);
 		auto error_or_peer_connection = _factory->CreatePeerConnectionOrError(cfg, std::move(pc_dependencies));
@@ -113,7 +113,7 @@ RTCPeerConnectionInternal::~RTCPeerConnectionInternal() {
 	}
 }
 
-Let<RTCDataChannel> RTCPeerConnectionInternal::CreateDataChannel(const std::string& label, const RTCDataChannelInit& options) {
+std::shared_ptr<RTCDataChannel> RTCPeerConnectionInternal::CreateDataChannel(const std::string& label, const RTCDataChannelInit& options) {
 	webrtc::DataChannelInit init;
 
 	init.ordered = options.ordered;
@@ -130,17 +130,19 @@ Let<RTCDataChannel> RTCPeerConnectionInternal::CreateDataChannel(const std::stri
 		return nullptr;
 	}
 
-	return std::make_shared<RTCDataChannelInternal>(std::move(error_or_datachannel.value()));	
+	return std::make_shared<RTCDataChannelInternal>(std::move(error_or_datachannel.value()));
 }
 
-Let<Promise<void> > RTCPeerConnectionInternal::AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) {
-	return Promise<void>::New([=](const Promise<void>::FullFilledCallback& resolve, const Promise<void>::RejectedCallback& reject) {
+std::shared_ptr<Promise<>> RTCPeerConnectionInternal::AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) {
+	return Promise<>::New([=](
+		const Promise<>::FullFilledCallback& resolve,
+		const Promise<>::RejectedCallback& reject) {
 		webrtc::SdpParseError error;
 		webrtc::IceCandidateInterface* ice = webrtc::CreateIceCandidate(candidate.sdpMid, candidate.sdpMLineIndex, candidate.candidate, &error);
 
 		if (ice) {
 			if (!_socket->pending_remote_description() && !_socket->current_remote_description()) {
-				_pending_candidates.push_back(Callback([=]() {
+				_pending_candidates.push_back(([=]() {
 					if (_socket->AddIceCandidate(ice)) {
 						return resolve();
 					}
@@ -175,45 +177,40 @@ Let<Promise<void> > RTCPeerConnectionInternal::AddIceCandidate(const RTCPeerConn
 		});
 }
 
-void RTCPeerConnectionInternal::AddStream(const Let<MediaStream>& stream) {
+void RTCPeerConnectionInternal::AddStream(const std::shared_ptr<MediaStream>& stream) {
 	_socket->AddStream(reinterpret_cast<webrtc::MediaStreamInterface*>(stream->GetStream()));
 }
 
 /*
-Let<RTCPeerConnection::RTCRtpSender> RTCPeerConnectionInternal::AddTrack(const Let<MediaStreamTrack> &track, const Let<MediaStream> &stream) {
+std::shared_ptr<RTCPeerConnection::RTCRtpSender> RTCPeerConnectionInternal::AddTrack(const std::shared_ptr<MediaStreamTrack> &track, const std::shared_ptr<MediaStream> &stream) {
   // TODO(): Implement this
-  return Let<RTCPeerConnection::RTCRtpSender>();
+  return std::shared_ptr<RTCPeerConnection::RTCRtpSender>();
 }
 */
 
-Let<Promise<RTCPeerConnection::RTCSessionDescription>> RTCPeerConnectionInternal::CreateAnswer(const RTCPeerConnection::RTCAnswerOptions& options) {
-	Let<RTCPeerConnection> self(this);
-
+std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> RTCPeerConnectionInternal::CreateAnswer(const RTCPeerConnection::RTCAnswerOptions& options) {
 	return Promise<RTCPeerConnection::RTCSessionDescription>::New([=](
-		const Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback& resolve,
-		const Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback& reject)
-		{
-			rtc::scoped_refptr<CreateOfferAnswerObserver> observer = rtc::make_ref_counted<CreateOfferAnswerObserver>(resolve, reject);
-			webrtc::PeerConnectionInterface::RTCOfferAnswerOptions answer_options(
-				true, // offer_to_receive_video
-				true, // offer_to_receive_audio
-				options.voiceActivityDetection, // voice_activity_detection
-				false, // ice_restart 
-				true  // use_rtp_mux
-			);
+		const Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback& resolve, 
+		const Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback& reject) {
+		rtc::scoped_refptr<CreateOfferAnswerObserver> observer = rtc::make_ref_counted<CreateOfferAnswerObserver>(resolve, reject);
+		webrtc::PeerConnectionInterface::RTCOfferAnswerOptions answer_options(
+			true, // offer_to_receive_video
+			true, // offer_to_receive_audio
+			options.voiceActivityDetection, // voice_activity_detection
+			false, // ice_restart 
+			true  // use_rtp_mux
+		);
 
-			if (observer.get()) {
-				_socket->CreateAnswer(observer.get(), answer_options);
-			}
-			else {
-				reject(Error::New("CreateOfferAnswerObserver Failed", __FILE__, __LINE__));
-			}
+		if (observer.get()) {
+			_socket->CreateAnswer(observer.get(), answer_options);
+		}
+		else {
+			reject(Error::New("CreateOfferAnswerObserver Failed", __FILE__, __LINE__));
+		}
 		});
 }
 
-Let<Promise<RTCPeerConnection::RTCSessionDescription>> RTCPeerConnectionInternal::CreateOffer(const RTCPeerConnection::RTCOfferOptions& options) {
-	Let<RTCPeerConnection> self(this);
-
+std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> RTCPeerConnectionInternal::CreateOffer(const RTCPeerConnection::RTCOfferOptions& options) {
 	return Promise<RTCPeerConnection::RTCSessionDescription>::New([=](
 		const Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback& resolve,
 		const Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback& reject)
@@ -237,8 +234,8 @@ Let<Promise<RTCPeerConnection::RTCSessionDescription>> RTCPeerConnectionInternal
 }
 
 /*
-Let<Promise<RTCPeerConnection::RTCCertificate>> RTCPeerConnectionInternal::GenerateCertificate() {
-  Let<RTCPeerConnection> self(this);
+std::shared_ptr<Promise<RTCPeerConnection::RTCCertificate>> RTCPeerConnectionInternal::GenerateCertificate() {
+  std::shared_ptr<RTCPeerConnection> self(this);
 
   return Promise<RTCPeerConnection::RTCCertificate>::New([=](
 	const Promise<RTCPeerConnection::RTCCertificate>::FullFilledCallback &resolve,
@@ -255,9 +252,9 @@ MediaStreams RTCPeerConnectionInternal::GetLocalStreams() {
 	rtc::scoped_refptr<webrtc::StreamCollectionInterface> lstreams(_socket->local_streams());
 
 	for (size_t index = 0; index < lstreams->count(); index++) {
-		Let<MediaStream> stream = MediaStreamInternal::New(lstreams->at(index));
+		auto stream = MediaStreamInternal::New(lstreams->at(index));
 
-		if (!stream.IsEmpty()) {
+		if (stream) {
 			streams.push_back(stream);
 		}
 	}
@@ -280,12 +277,12 @@ MediaStreams RTCPeerConnectionInternal::GetRemoteStreams() {
 	return streams;
 }
 
-void RTCPeerConnectionInternal::RemoveStream(const Let<MediaStream>& stream) {
+void RTCPeerConnectionInternal::RemoveStream(const std::shared_ptr<MediaStream>& stream) {
 	_socket->RemoveStream(reinterpret_cast<webrtc::MediaStreamInterface*>(stream->GetStream()));
 }
 
 /*
-void RTCPeerConnectionInternal::RemoveTrack(const Let<RTCPeerConnection::RTCRtpSender> &sender) {
+void RTCPeerConnectionInternal::RemoveTrack(const std::shared_ptr<RTCPeerConnection::RTCRtpSender> &sender) {
   // TODO(): Implement this
 }
 */
@@ -295,22 +292,20 @@ void RTCPeerConnectionInternal::SetConfiguration(const RTCPeerConnection::RTCCon
 
 	auto error = ParseConfiguration(config, &cfg);
 
-	if (error.IsEmpty()) {
+	if (!error) {
 		_socket->SetConfiguration(cfg);
 	}
 }
 
-Let<Promise<void> > RTCPeerConnectionInternal::SetLocalDescription(const RTCPeerConnection::RTCSessionDescription& sdp) {
-	Let<RTCPeerConnection> self(this);
-
-	return Promise<void>::New([=](
-		const Promise<void>::FullFilledCallback& resolve,
-		const Promise<void>::RejectedCallback& reject)
+std::shared_ptr<Promise<> > RTCPeerConnectionInternal::SetLocalDescription(const RTCPeerConnection::RTCSessionDescription& sdp) {
+	return Promise<>::New([=](
+		const Promise<>::FullFilledCallback& resolve,
+		const Promise<>::RejectedCallback& reject)
 		{
 			webrtc::SessionDescriptionInterface* desc = nullptr;
-			Let<Error> error = SDP2SDP(sdp, &desc);
+			auto error = SDP2SDP(sdp, &desc);
 
-			if (error.IsEmpty()) {
+			if (!error) {
 				rtc::scoped_refptr<SetSessionDescriptionObserver> observer = rtc::make_ref_counted<SetSessionDescriptionObserver>(resolve, reject);
 				_socket->SetLocalDescription(observer.get(), desc);
 			}
@@ -320,18 +315,16 @@ Let<Promise<void> > RTCPeerConnectionInternal::SetLocalDescription(const RTCPeer
 		});
 }
 
-Let<Promise<void> > RTCPeerConnectionInternal::SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription& sdp) {
-	Let<RTCPeerConnection> self(this);
-
-	return Promise<void>::New([=](
-		const Promise<void>::FullFilledCallback& resolve,
-		const Promise<void>::RejectedCallback& reject)
+std::shared_ptr<Promise<> > RTCPeerConnectionInternal::SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription& sdp) {
+	return Promise<>::New([=](
+		const Promise<>::FullFilledCallback& resolve,
+		const Promise<>::RejectedCallback& reject)
 		{
 			webrtc::SessionDescriptionInterface* desc = nullptr;
-			Let<Error> error = SDP2SDP(sdp, &desc);
+			auto error = SDP2SDP(sdp, &desc);
 
-			if (error.IsEmpty()) {
-				auto promise = Promise<void>::New([=](const Promise<void>::FullFilledCallback& res, const Promise<void>::RejectedCallback& rej) {
+			if (!error) {
+				auto promise = Promise<>::New([=](const Promise<>::FullFilledCallback& res, const Promise<>::RejectedCallback& rej) {
 					rtc::scoped_refptr<SetSessionDescriptionObserver> observer = rtc::make_ref_counted<SetSessionDescriptionObserver>(res, rej);
 					_socket->SetRemoteDescription(observer.get(), desc);
 					})->Then([=]() {
@@ -344,7 +337,7 @@ Let<Promise<void> > RTCPeerConnectionInternal::SetRemoteDescription(const RTCPee
 						}
 
 						resolve();
-						})->Catch([=](const Let<Error>& error) {
+						})->Catch([=](const std::shared_ptr<Error>& error) {
 							reject(error);
 							});
 
@@ -456,9 +449,9 @@ void RTCPeerConnectionInternal::OnSignalingChange(webrtc::PeerConnectionInterfac
 	onsignalingstatechange();
 
 	if (new_state == webrtc::PeerConnectionInterface::kClosed) {
-		_event.Dispose();
+		_event.reset();
 	}
-	else if (_event.IsEmpty()) {
+	else if (!_event) {
 		_event = Event::New();
 	}
 }
@@ -548,7 +541,7 @@ RTCPeerConnection::RTCConfiguration::RTCConfiguration() :
 	bundlePolicy(kMaxBundle),
 	iceTransportPolicy(kAll),
 	rtcpMuxPolicy(kRequire)
-{ 
+{
 	RTCIceServer iceserver;
 	iceserver.urls.push_back(std::string("stun:stun.l.google.com:19302"));
 	iceServers.push_back(iceserver);

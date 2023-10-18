@@ -135,7 +135,7 @@ namespace crtc {
 		CheshireCat& operator=(CheshireCat<T>&& cc) {
 			mImpl = std::move(cc.mImpl);
 			return *this;
-		};
+		}
 		CheshireCat& operator=(const CheshireCat<T>&) = delete;
 
 	protected:

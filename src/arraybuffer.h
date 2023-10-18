@@ -34,6 +34,10 @@ namespace crtc {
     class ArrayBufferInternal : public ArrayBuffer {
 
     public:
+        explicit ArrayBufferInternal(const uint8_t* data = nullptr, size_t byteLength = 0);
+        ArrayBufferInternal(const std::shared_ptr<ArrayBuffer>& buffer);
+        virtual ~ArrayBufferInternal();
+
         size_t ByteLength() const override;
 
         std::shared_ptr<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
@@ -47,11 +51,6 @@ namespace crtc {
         bool _alloc;
 
     protected:
-        explicit ArrayBufferInternal(const uint8_t* data = nullptr, size_t byteLength = 0);
-        ArrayBufferInternal(const std::shared_ptr<ArrayBuffer>& buffer);
-
-        ~ArrayBufferInternal();
-
         void Init(const uint8_t* data, size_t byteLength);
 
         uint8_t* _data;

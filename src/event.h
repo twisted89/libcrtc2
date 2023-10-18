@@ -9,11 +9,10 @@ namespace crtc {
 		Event& operator=(const Event&) = delete;
 
 	public:
-		static std::shared_ptr<Event> New();
-
-	protected:
 		explicit Event();
-		~Event();
+		virtual ~Event();
+
+		static std::shared_ptr<Event> New();
 	};
 }
 

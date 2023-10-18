@@ -29,26 +29,23 @@
 #include "crtc.h"
 #include <cstring>
 
-namespace crtc {  
-  class ErrorInternal : public Error {
-      friend class std::shared_ptr<ErrorInternal>;
+namespace crtc {
+	class ErrorInternal : public Error {
+	public:
+		explicit ErrorInternal(const std::string& message, const std::string& fileName, int lineNumber);
+		virtual ~ErrorInternal();
+		std::string Message() const override;
+		std::string FileName() const override;
+		int LineNumber() const override;
 
-    public:
-      std::string Message() const override;
-      std::string FileName() const override;
-      int LineNumber() const override;
+		std::string ToString() const override;
 
-      std::string ToString() const override;
-
-    protected:
-      explicit ErrorInternal(const std::string &message, const std::string &fileName, int lineNumber);
-      ~ErrorInternal();
-
-      std::string _name = "Error";
-      std::string _message;
-      std::string _filename;
-      int _linenumber;
-  };
+	protected:
+		std::string _name = "Error";
+		std::string _message;
+		std::string _filename;
+		int _linenumber;
+	};
 }
 
 #endif

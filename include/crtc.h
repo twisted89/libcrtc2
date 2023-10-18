@@ -49,15 +49,15 @@ WebRTC uses Real-Time Protocol to transfer audio and video.
 #include "utils.hpp"
 
 #if defined(_MSC_VER)
-	#ifdef CRTC_EXPORTS
-		#define CRTC_EXPORT __declspec(dllexport) // Even though clang will complain about this on Windows it is required to export symbols correctly
-	#else
-		#define CRTC_EXPORT __declspec(dllimport)
-	#endif
-	#define CRTC_NO_EXPORT
+#ifdef CRTC_EXPORTS
+#define CRTC_EXPORT __declspec(dllexport) // Even though clang will complain about this on Windows it is required to export symbols correctly
 #else
-	#define CRTC_EXPORT __attribute__((visibility("default")))
-	#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
+#define CRTC_EXPORT __declspec(dllimport)
+#endif
+#define CRTC_NO_EXPORT
+#else
+#define CRTC_EXPORT __attribute__((visibility("default")))
+#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
 #endif
 
 
@@ -86,7 +86,7 @@ namespace crtc {
 	};
 
 
-	typedef synchronized_callback<> Callback;
+	typedef std::function<void()> Callback;
 
 	class CRTC_EXPORT Async {
 		explicit Async() = delete;
@@ -99,7 +99,7 @@ namespace crtc {
 	/// \sa https://developer.mozilla.org/en/docs/Web/API/Window/SetImmediate
 
 	template <typename F, typename... Args> static inline void SetImmediate(F&& func, Args... args) {
-		Functor<void(Args...)> callback(func);
+		std::function<void(Args...)> callback(func);
 
 		Async::Call(Callback([=]() {
 			callback(args...);
@@ -111,7 +111,7 @@ namespace crtc {
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers/setTimeout
 
 	template <typename F, typename... Args> static inline void SetTimeout(F&& func, int delay, Args... args) {
-		Functor<void(Args... args)> callback(func);
+		std::function<void(Args... args)> callback(func);
 
 		Async::Call(Callback([=]() {
 			callback(args...);
@@ -139,6 +139,107 @@ namespace crtc {
 
 	typedef synchronized_callback<std::shared_ptr<Error>> ErrorCallback;
 
+	/// \sa https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise
+
+	template <typename... Args> class Promise {
+		Promise<Args...>(const Promise<Args...>&) = delete;
+		Promise<Args...>& operator=(const Promise<Args...>&) = delete;
+
+	public:
+		typedef std::function<void(Args...)> FullFilledCallback;
+		typedef Callback FinallyCallback;
+		typedef std::function<void(std::shared_ptr<Error>)> RejectedCallback;
+		typedef std::function<void(const FullFilledCallback&, const RejectedCallback&)> ExecutorCallback;
+
+		inline static std::shared_ptr<Promise<Args...>> New(const ExecutorCallback& executor) {
+			std::shared_ptr<Promise<Args...>> self = std::shared_ptr<Promise<Args...>>::New();
+
+			RejectedCallback reject([=](const std::shared_ptr<Error>& error) {
+				if (!self.IsEmpty()) {
+					for (const auto& callback : self->_onreject) {
+						callback(error);
+					}
+
+					for (const auto& callback : self->_onfinally) {
+						callback();
+					}
+
+					self->_onfinally.clear();
+					self->_onreject.clear();
+					self->_onresolve.clear();
+
+					self.reset();
+				}
+				});
+
+			RejectedCallback asyncReject([=](const std::shared_ptr<Error>& error) {
+				Async::Call(Callback([=]() {
+					reject(error);
+					}, [=]() {
+						reject(error);
+						}), 0);
+				});
+
+			FullFilledCallback resolve([=](Args... args) {
+				Async::Call(Callback([=]() {
+					if (!self.IsEmpty()) {
+						for (const auto& callback : self->_onresolve) {
+							callback(std::move(args)...);
+						}
+
+						for (const auto& callback : self->_onfinally) {
+							callback();
+						}
+
+						self->_onfinally.clear();
+						self->_onreject.clear();
+						self->_onresolve.clear();
+
+						self.Dispose();
+					}
+					}, [=]() {
+						asyncReject(Error::New("Reference Lost.", __FILE__, __LINE__));
+						}), 0);
+				}, [=]() {
+					asyncReject(Error::New("Reference Lost.", __FILE__, __LINE__));
+					});
+
+			if (executor) {
+				executor(resolve, asyncReject);
+			}
+			else {
+				asyncReject(Error::New("Invalid Executor Callback.", __FILE__, __LINE__));
+			}
+
+			return self;
+		}
+
+		inline Promise<Args...> Then(const FullFilledCallback& callback) {
+			_onresolve.push_back(callback);
+			return this;
+		}
+
+		inline <Promise<Args...> Catch(const RejectedCallback& callback) {
+			_onreject.push_back(callback);
+			return this;
+		}
+
+		inline Promise<Args...> Finally(const FinallyCallback& callback) {
+			_onfinally.push_back(callback);
+			return this;
+		}
+
+	private:
+		std::vector<FullFilledCallback> _onresolve;
+		std::vector<RejectedCallback> _onreject;
+		std::vector<FinallyCallback> _onfinally;
+
+	protected:
+		explicit Promise() { }
+		~Promise() { }
+	};
+
+	//template<> class Promise<void> : public Promise<> { };
 
 	/// \sa https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 
@@ -147,6 +248,9 @@ namespace crtc {
 		ArrayBuffer& operator=(const ArrayBuffer&) = delete;
 
 	public:
+		explicit ArrayBuffer() { }
+		virtual ~ArrayBuffer() { }
+
 		static std::shared_ptr<ArrayBuffer> New(size_t byteLength = 0);
 		static std::shared_ptr<ArrayBuffer> New(const std::string& data);
 		static std::shared_ptr<ArrayBuffer> New(const uint8_t* data, size_t byteLength = 0);
@@ -159,10 +263,6 @@ namespace crtc {
 		virtual const uint8_t* Data() const = 0;
 
 		virtual std::string ToString() const = 0;
-
-	protected:
-		explicit ArrayBuffer() { }
-		~ArrayBuffer() { }
 	};
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
@@ -198,7 +298,7 @@ namespace crtc {
 			_byteLength(0),
 			_buffer(buffer)
 		{
-			if (_buffer.IsEmpty()) {
+			if (!_buffer) {
 				_buffer = ArrayBuffer::New(byteLength - byteOffset);
 			}
 
@@ -761,7 +861,7 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addIceCandidate
 
-		virtual std::shared_ptr<Error> AddIceCandidate(const RTCIceCandidate& candidate) = 0;
+		virtual std::shared_ptr<Promise<>> AddIceCandidate(const RTCIceCandidate& candidate) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream
 
@@ -769,11 +869,11 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createAnswer
 
-		virtual std::shared_ptr<RTCSessionDescription> CreateAnswer(const RTCAnswerOptions& options = RTCAnswerOptions()) = 0;
+		virtual std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> CreateAnswer(const RTCAnswerOptions& options = RTCAnswerOptions()) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createOffer
 
-		virtual std::shared_ptr<RTCSessionDescription> CreateOffer(const RTCOfferOptions& options = RTCOfferOptions()) = 0;
+		virtual std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> CreateOffer(const RTCOfferOptions& options = RTCOfferOptions()) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getLocalStreams
 
@@ -793,11 +893,11 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/setLocalDescription
 
-		virtual std::shared_ptr<Error> SetLocalDescription(const RTCSessionDescription& sdp) = 0;
+		virtual std::shared_ptr<Promise<>> SetLocalDescription(const RTCSessionDescription& sdp) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/setRemoteDescription
 
-		virtual std::shared_ptr<Error> SetRemoteDescription(const RTCSessionDescription& sdp) = 0;
+		virtual std::shared_ptr<Promise<>> SetRemoteDescription(const RTCSessionDescription& sdp) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/close
 

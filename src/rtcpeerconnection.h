@@ -41,10 +41,12 @@ namespace crtc {
 	class RTCPeerConnectionInternal;
 
 	class RTCPeerConnectionInternal : public RTCPeerConnection, public webrtc::PeerConnectionObserver {
-		friend class Let<RTCPeerConnectionInternal>;
 		friend class RTCPeerConnectionObserver;
 
 	public:
+		explicit RTCPeerConnectionInternal(const RTCConfiguration& config = RTCConfiguration());
+		virtual ~RTCPeerConnectionInternal() override;
+
 		static void Init();
 		static void Dispose();
 
@@ -53,20 +55,20 @@ namespace crtc {
 		static rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device;
 		static rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
 
-		Let<RTCDataChannel> CreateDataChannel(const std::string& label, const RTCDataChannelInit& options = RTCDataChannelInit()) override;
-		Let<Promise<void>> AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) override;
-		void AddStream(const Let<MediaStream>& stream) override;
+		std::shared_ptr<RTCDataChannel> CreateDataChannel(const std::string& label, const RTCDataChannelInit& options = RTCDataChannelInit()) override;
+		std::shared_ptr<Promise<>> AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) override;
+		void AddStream(const std::shared_ptr<MediaStream>& stream) override;
 		// Let<RTCPeerConnection::RTCRtpSender> AddTrack(const Let<MediaStreamTrack> &track, const Let<MediaStream> &stream) override;
-		Let<Promise<RTCPeerConnection::RTCSessionDescription>> CreateAnswer(const RTCPeerConnection::RTCAnswerOptions& options) override;
-		Let<Promise<RTCPeerConnection::RTCSessionDescription>> CreateOffer(const RTCPeerConnection::RTCOfferOptions& options) override;
+		std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> CreateAnswer(const RTCPeerConnection::RTCAnswerOptions& options) override;
+		std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> CreateOffer(const RTCPeerConnection::RTCOfferOptions& options) override;
 		// Let<Promise<RTCPeerConnection::RTCCertificate>> GenerateCertificate() override;
 		MediaStreams GetLocalStreams() override;
 		MediaStreams GetRemoteStreams() override;
-		void RemoveStream(const Let<MediaStream>& stream) override;
+		void RemoveStream(const std::shared_ptr<MediaStream>& stream) override;
 		// void RemoveTrack(const Let<RTCPeerConnection::RTCRtpSender> &sender) override;
 		void SetConfiguration(const RTCPeerConnection::RTCConfiguration& config) override;
-		Let<Promise<void>> SetLocalDescription(const RTCPeerConnection::RTCSessionDescription& sdp) override;
-		Let<Promise<void>> SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription& sdp) override;
+		std::shared_ptr<Promise<>> SetLocalDescription(const RTCPeerConnection::RTCSessionDescription& sdp) override;
+		std::shared_ptr<Promise<>> SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription& sdp) override;
 		void Close() override;
 
 		RTCPeerConnection::RTCSessionDescription CurrentLocalDescription() override;
@@ -81,7 +83,7 @@ namespace crtc {
 		RTCPeerConnection::RTCSignalingState SignalingState() override;
 
 	private:
-		inline static Let<Error> SDP2SDP(const webrtc::SessionDescriptionInterface* desc = nullptr, RTCPeerConnection::RTCSessionDescription* sdp = nullptr) {
+		inline static std::shared_ptr<Error> SDP2SDP(const webrtc::SessionDescriptionInterface* desc = nullptr, RTCPeerConnection::RTCSessionDescription* sdp = nullptr) {
 			if (desc && sdp) {
 				if (desc->type().compare(webrtc::SessionDescriptionInterface::kOffer) == 0) {
 					sdp->type = RTCPeerConnection::RTCSessionDescription::kOffer;
@@ -94,7 +96,7 @@ namespace crtc {
 				}
 
 				if (desc->ToString(&sdp->sdp)) {
-					return Let<Error>();
+					return nullptr;
 				}
 
 				return Error::New("Unable to create SessionDescription", __FILE__, __LINE__);
@@ -103,7 +105,7 @@ namespace crtc {
 			return Error::New("Invalid SessionDescriptionInterface", __FILE__, __LINE__);
 		}
 
-		inline static Let<Error> SDP2SDP(const RTCPeerConnection::RTCSessionDescription& sdp, webrtc::SessionDescriptionInterface** desc = nullptr) {
+		inline static std::shared_ptr<Error> SDP2SDP(const RTCPeerConnection::RTCSessionDescription& sdp, webrtc::SessionDescriptionInterface** desc = nullptr) {
 			std::string type;
 			webrtc::SdpParseError error;
 
@@ -125,7 +127,7 @@ namespace crtc {
 				*desc = webrtc::CreateSessionDescription(type, sdp.sdp, &error);
 
 				if (*desc) {
-					return Let<Error>();
+					return nullptr;
 				}
 				else {
 					return Error::New(error.description, __FILE__, __LINE__);
@@ -136,7 +138,7 @@ namespace crtc {
 			}
 		}
 
-		inline static Let<Error> ParseConfiguration(
+		inline static std::shared_ptr<Error> ParseConfiguration(
 			const RTCPeerConnection::RTCConfiguration& config,
 			webrtc::PeerConnectionInterface::RTCConfiguration* cfg = nullptr)
 		{
@@ -188,7 +190,7 @@ namespace crtc {
 					cfg->servers.push_back(server);
 				}
 
-				return Let<Error>();
+				return nullptr;
 			}
 
 			return Error::New("Invalid RTCConfiguration", __FILE__, __LINE__);
@@ -208,9 +210,9 @@ namespace crtc {
 			void OnSuccess(webrtc::SessionDescriptionInterface* desc) override {
 				RTCPeerConnection::RTCSessionDescription sdp;
 
-				Let<Error> error = SDP2SDP(desc, &sdp);
+				auto error = SDP2SDP(desc, &sdp);
 
-				if (error.IsEmpty()) {
+				if (!error) {
 					_resolve(sdp);
 				}
 				else {
@@ -228,8 +230,8 @@ namespace crtc {
 
 		class SetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver {
 		public:
-			SetSessionDescriptionObserver(const Promise<void>::FullFilledCallback& resolve,
-				const Promise<void>::RejectedCallback& reject) :
+			SetSessionDescriptionObserver(const Promise<>::FullFilledCallback& resolve,
+				const Promise<>::RejectedCallback& reject) :
 				_resolve(resolve),
 				_reject(reject)
 			{ }
@@ -245,8 +247,8 @@ namespace crtc {
 				_reject(Error::New(error.message(), __FILE__, __LINE__));
 			}
 
-			Promise<void>::FullFilledCallback _resolve;
-			Promise<void>::RejectedCallback _reject;
+			Promise<>::FullFilledCallback _resolve;
+			Promise<>::RejectedCallback _reject;
 		};
 
 		void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
@@ -263,14 +265,11 @@ namespace crtc {
 		void OnIceConnectionReceivingChange(bool receiving) override;
 
 	protected:
-		explicit RTCPeerConnectionInternal(const RTCConfiguration& config = RTCConfiguration());
-		~RTCPeerConnectionInternal() override;
-
 		rtc::scoped_refptr<webrtc::PeerConnectionInterface> _socket;
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> _factory;
-		Let<Event> _event;
+		std::shared_ptr<Event> _event;
 		std::vector<Callback> _pending_candidates;
 	};
-}
+};
 
 #endif
