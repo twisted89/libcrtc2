@@ -35,8 +35,12 @@ namespace crtc {
 		webrtc::AudioTrackSinkInterface, rtc::VideoSinkInterface<webrtc::VideoFrame> {
 
 	public:
-		static webrtc::MediaStreamTrackInterface* New(const std::shared_ptr<MediaStreamTrack>& track);
-		static std::shared_ptr<MediaStreamTrack> New(const webrtc::MediaStreamTrackInterface* track = nullptr);
+		//static webrtc::MediaStreamTrackInterface* New(const std::shared_ptr<MediaStreamTrack>& track);
+		static std::shared_ptr<MediaStreamTrack> New(webrtc::MediaStreamTrackInterface* track = nullptr);
+
+		MediaStreamTrackInternal(MediaStreamTrack::Type kind, webrtc::MediaStreamTrackInterface* track = nullptr, webrtc::MediaSourceInterface* source = nullptr);
+		MediaStreamTrackInternal(const std::shared_ptr<MediaStreamTrackInternal>& track);
+		virtual ~MediaStreamTrackInternal() override;
 
 		bool Enabled() const override;
 		bool Remote() const override;
@@ -53,9 +57,6 @@ namespace crtc {
 		void OnChanged() override;
 
 	protected:
-		MediaStreamTrackInternal(MediaStreamTrack::Type kind, webrtc::MediaStreamTrackInterface* track = nullptr, webrtc::MediaSourceInterface* source = nullptr);
-		MediaStreamTrackInternal(const std::shared_ptr<MediaStreamTrackInternal>& track);
-
 		virtual void OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames) override;
 		virtual void OnFrame(const webrtc::VideoFrame& frame) override;
 		virtual void OnDiscardedFrame() override;
@@ -64,8 +65,6 @@ namespace crtc {
 		virtual void OnUnMute();
 		virtual void OnMute();
 		virtual void OnEnded();
-
-		~MediaStreamTrackInternal() override;
 
 		MediaStreamTrack::Type _kind;
 		rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> _track;

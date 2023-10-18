@@ -8,7 +8,7 @@ set(ENABLE_ASAN OFF)
 
 project(libcrtc)
 
-set(WEBRTC_SRC C:/tools/depot_tools/webrtc-checkout/src)
+set(WEBRTC_SRC ${CMAKE_CURRENT_SOURCE_DIR}/3dparty/depot_tools/webrtc-checkout/src)
 message(${WEBRTC_SRC})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)

@@ -124,6 +124,9 @@ namespace crtc {
 
 	class CRTC_EXPORT Error {
 	public:
+		explicit Error() { }
+		virtual ~Error() { }
+
 		static std::shared_ptr<Error> New(std::string message, std::string fileName = __FILE__, int lineNumber = __LINE__);
 
 		virtual std::string Message() const = 0;
@@ -131,10 +134,6 @@ namespace crtc {
 		virtual int LineNumber() const = 0;
 
 		virtual std::string ToString() const = 0;
-
-	protected:
-		explicit Error() { }
-		~Error() { }
 	};
 
 	typedef synchronized_callback<std::shared_ptr<Error>> ErrorCallback;
@@ -151,11 +150,14 @@ namespace crtc {
 		typedef std::function<void(std::shared_ptr<Error>)> RejectedCallback;
 		typedef std::function<void(const FullFilledCallback&, const RejectedCallback&)> ExecutorCallback;
 
+		explicit Promise() { }
+		virtual ~Promise() { }
+
 		inline static std::shared_ptr<Promise<Args...>> New(const ExecutorCallback& executor) {
-			std::shared_ptr<Promise<Args...>> self = std::shared_ptr<Promise<Args...>>::New();
+			auto self = std::make_shared<Promise<Args...>>();
 
 			RejectedCallback reject([=](const std::shared_ptr<Error>& error) {
-				if (!self.IsEmpty()) {
+				if (self) {
 					for (const auto& callback : self->_onreject) {
 						callback(error);
 					}
@@ -167,22 +169,16 @@ namespace crtc {
 					self->_onfinally.clear();
 					self->_onreject.clear();
 					self->_onresolve.clear();
-
-					self.reset();
 				}
 				});
 
 			RejectedCallback asyncReject([=](const std::shared_ptr<Error>& error) {
-				Async::Call(Callback([=]() {
-					reject(error);
-					}, [=]() {
-						reject(error);
-						}), 0);
+				Async::Call([=]() { reject(error); }); 
 				});
 
 			FullFilledCallback resolve([=](Args... args) {
-				Async::Call(Callback([=]() {
-					if (!self.IsEmpty()) {
+				Async::Call([=]() {
+					if (self) {
 						for (const auto& callback : self->_onresolve) {
 							callback(std::move(args)...);
 						}
@@ -194,15 +190,9 @@ namespace crtc {
 						self->_onfinally.clear();
 						self->_onreject.clear();
 						self->_onresolve.clear();
-
-						self.Dispose();
 					}
-					}, [=]() {
-						asyncReject(Error::New("Reference Lost.", __FILE__, __LINE__));
-						}), 0);
-				}, [=]() {
-					asyncReject(Error::New("Reference Lost.", __FILE__, __LINE__));
 					});
+				});
 
 			if (executor) {
 				executor(resolve, asyncReject);
@@ -214,17 +204,17 @@ namespace crtc {
 			return self;
 		}
 
-		inline Promise<Args...> Then(const FullFilledCallback& callback) {
+		inline Promise<Args...>* Then(const FullFilledCallback& callback) {
 			_onresolve.push_back(callback);
 			return this;
 		}
 
-		inline <Promise<Args...> Catch(const RejectedCallback& callback) {
+		inline Promise<Args...>* Catch(const RejectedCallback& callback) {
 			_onreject.push_back(callback);
 			return this;
 		}
 
-		inline Promise<Args...> Finally(const FinallyCallback& callback) {
+		inline Promise<Args...>* Finally(const FinallyCallback& callback) {
 			_onfinally.push_back(callback);
 			return this;
 		}
@@ -233,10 +223,6 @@ namespace crtc {
 		std::vector<FullFilledCallback> _onresolve;
 		std::vector<RejectedCallback> _onreject;
 		std::vector<FinallyCallback> _onfinally;
-
-	protected:
-		explicit Promise() { }
-		~Promise() { }
 	};
 
 	//template<> class Promise<void> : public Promise<> { };
@@ -436,15 +422,15 @@ namespace crtc {
 		VideoFrame& operator=(const VideoFrame&) = delete;
 
 	public:
+		explicit VideoFrame() { }
+		virtual ~VideoFrame() { }
+
 		virtual uint8_t* Data() = 0;
 		virtual const uint8_t* Data() const = 0;
 		virtual size_t ByteLength() const = 0;
 		virtual uint32_t TimeStamp() const;
 
 	protected:
-		explicit VideoFrame() { }
-		virtual ~VideoFrame() { }
-
 		uint32_t _timestamp = 0;
 	};
 
@@ -463,6 +449,9 @@ namespace crtc {
 			kLive,
 			kEnded,
 		};
+
+		explicit MediaStreamTrack();
+		virtual ~MediaStreamTrack();
 
 		virtual bool Enabled() const = 0;
 		virtual bool Muted() const = 0;
@@ -484,10 +473,6 @@ namespace crtc {
 		synchronized_callback<const void*, int, int, size_t, size_t> onAudio;
 		synchronized_callback<std::shared_ptr<VideoFrame>> onVideo;
 		synchronized_callback<> onFrameDrop;
-
-	protected:
-		explicit MediaStreamTrack();
-		~MediaStreamTrack();
 	};
 
 	typedef std::vector<std::shared_ptr<MediaStreamTrack>> MediaStreamTracks;
@@ -503,8 +488,8 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/addTrack
 
-		//virtual void AddTrack(const std::shared_ptr<MediaStreamTrack>& track) = 0;
-		//virtual void RemoveTrack(const std::shared_ptr<MediaStreamTrack>& track) = 0;
+		virtual void AddTrack(const std::shared_ptr<MediaStreamTrack>& track) = 0;
+		virtual void RemoveTrack(const std::shared_ptr<MediaStreamTrack>& track) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/getTrackById
 
@@ -534,6 +519,9 @@ namespace crtc {
 		AudioBuffer& operator=(const AudioBuffer&) = delete;
 
 	public:
+		explicit AudioBuffer() { }
+		virtual ~AudioBuffer() { }
+
 		static std::shared_ptr<AudioBuffer> New(int channels = 2, int sampleRate = 44100, int bitsPerSample = 8, int frames = 1);
 		static std::shared_ptr<AudioBuffer> New(const std::shared_ptr<ArrayBuffer>& buffer, int channels = 2, int sampleRate = 44100, int bitsPerSample = 8, int frames = 1);
 
@@ -541,10 +529,6 @@ namespace crtc {
 		virtual int SampleRate() const = 0;
 		virtual int BitsPerSample() const = 0;
 		virtual int Frames() const = 0;
-
-	protected:
-		explicit AudioBuffer() { }
-		~AudioBuffer() { }
 	};
 
 	class CRTC_EXPORT AudioSource : virtual public MediaStream {
@@ -552,6 +536,9 @@ namespace crtc {
 		AudioSource& operator=(const AudioSource&) = delete;
 
 	public:
+		explicit AudioSource();
+		virtual ~AudioSource();
+
 		static std::shared_ptr<AudioSource> New();
 
 		virtual bool IsRunning() const = 0;
@@ -560,10 +547,6 @@ namespace crtc {
 		virtual void Write(const std::shared_ptr<AudioBuffer>& buffer, ErrorCallback callback = ErrorCallback()) = 0;
 
 		Callback ondrain;
-
-	protected:
-		explicit AudioSource();
-		~AudioSource();
 	};
 
 	class CRTC_EXPORT ImageBuffer : public ArrayBuffer {
@@ -571,6 +554,9 @@ namespace crtc {
 		ImageBuffer& operator=(const ImageBuffer&) = delete;
 
 	public:
+		explicit ImageBuffer() { }
+		virtual ~ImageBuffer() { }
+
 		static std::shared_ptr<ImageBuffer> New(int width, int height);
 		static std::shared_ptr<ImageBuffer> New(const std::shared_ptr<ArrayBuffer>& buffer, int width, int height);
 
@@ -587,10 +573,6 @@ namespace crtc {
 		virtual int StrideY() const = 0;
 		virtual int StrideU() const = 0;
 		virtual int StrideV() const = 0;
-
-	protected:
-		explicit ImageBuffer() { }
-		~ImageBuffer() { }
 	};
 
 	class CRTC_EXPORT VideoSource : virtual public MediaStream {
@@ -598,6 +580,9 @@ namespace crtc {
 		VideoSource& operator=(const VideoSource&) = delete;
 
 	public:
+		explicit VideoSource();
+		virtual ~VideoSource();
+
 		static std::shared_ptr<VideoSource> New(int width = 1280, int height = 720, float fps = 30);
 
 		virtual bool IsRunning() const = 0;
@@ -610,10 +595,6 @@ namespace crtc {
 		virtual void Write(const std::shared_ptr<ImageBuffer>& frame, ErrorCallback callback = ErrorCallback()) = 0;
 
 		Callback ondrain;
-
-	protected:
-		explicit VideoSource();
-		~VideoSource();
 	};
 
 	/// \sa https://developer.mozilla.org/en/docs/Web/API/RTCDataChannel
@@ -631,6 +612,9 @@ namespace crtc {
 			kClosing,
 			kClosed
 		};
+
+		explicit RTCDataChannel();
+		virtual ~RTCDataChannel();
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/id
 
@@ -702,10 +686,6 @@ namespace crtc {
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/onopen
 
 		Callback onopen;
-
-	protected:
-		explicit RTCDataChannel();
-		~RTCDataChannel();
 	};
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
@@ -855,6 +835,9 @@ namespace crtc {
 		typedef synchronized_callback<const std::shared_ptr<RTCDataChannel>> DataChannelCallback;
 		typedef synchronized_callback<const RTCIceCandidate&> IceCandidateCallback;
 
+		explicit RTCPeerConnection();
+		virtual ~RTCPeerConnection();
+
 		static std::shared_ptr<RTCPeerConnection> New(const RTCConfiguration& config = RTCConfiguration());
 
 		virtual std::shared_ptr<RTCDataChannel> CreateDataChannel(const std::string& label, const RTCDataChannelInit& options = RTCDataChannelInit()) = 0;
@@ -925,10 +908,6 @@ namespace crtc {
 		TrackCallback onremovetrack;
 		DataChannelCallback ondatachannel;
 		IceCandidateCallback onicecandidate;
-
-	protected:
-		explicit RTCPeerConnection();
-		~RTCPeerConnection();
 	};
 } // namespace crtc
 

@@ -34,6 +34,9 @@ namespace crtc {
 		friend class AudioBuffer;
 
 	public:
+		explicit AudioBufferInternal(const std::shared_ptr<ArrayBuffer>& buffer, int channels, int sampleRate, int bitsPerSample, int frames);
+		virtual ~AudioBufferInternal();
+
 		size_t ByteLength() const override;
 
 		std::shared_ptr<ArrayBuffer> Slice(size_t begin = 0, size_t end = 0) const override;
@@ -49,9 +52,6 @@ namespace crtc {
 		int Frames() const override;
 
 	protected:
-		explicit AudioBufferInternal(const std::shared_ptr<ArrayBuffer>& buffer, int channels, int sampleRate, int bitsPerSample, int frames);
-		~AudioBufferInternal();
-
 		int _channels;
 		int _samplerate;
 		int _bitspersample;

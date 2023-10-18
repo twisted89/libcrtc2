@@ -270,6 +270,6 @@ namespace crtc {
 		std::shared_ptr<Event> _event;
 		std::vector<Callback> _pending_candidates;
 	};
-};
+}
 
 #endif

@@ -34,14 +34,17 @@ namespace crtc {
 	class AudioSourceInternal : public AudioSource, public MediaStreamInternal, public sigslot::has_slots<> {
 		friend class AudioSource;
 	public:
+		explicit AudioSourceInternal();
+		virtual ~AudioSourceInternal() override;
+
 		bool IsRunning() const override;
 		void Stop() override;
 
 		void Write(const std::shared_ptr<AudioBuffer>& buffer, ErrorCallback callback = ErrorCallback()) override;
 
 		std::string Id() const override;
-		//void AddTrack(const Let<MediaStreamTrack>& track) override;
-		//void RemoveTrack(const Let<MediaStreamTrack>& track) override;
+		void AddTrack(const std::shared_ptr<MediaStreamTrack>& track) override;
+		void RemoveTrack(const std::shared_ptr<MediaStreamTrack>& track) override;
 		std::shared_ptr<MediaStreamTrack> GetTrackById(const std::string& id) const override;
 		intptr_t GetStream() override;
 		MediaStreamTracks GetAudioTracks() const override;
@@ -49,9 +52,6 @@ namespace crtc {
 		std::shared_ptr<MediaStream> Clone() override;
 
 	protected:
-		explicit AudioSourceInternal();
-		~AudioSourceInternal() override;
-
 		void OnDrain();
 
 		static volatile int counter;

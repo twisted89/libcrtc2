@@ -137,12 +137,26 @@ std::shared_ptr<Promise<>> RTCPeerConnectionInternal::AddIceCandidate(const RTCP
 	return Promise<>::New([=](
 		const Promise<>::FullFilledCallback& resolve,
 		const Promise<>::RejectedCallback& reject) {
-		webrtc::SdpParseError error;
-		webrtc::IceCandidateInterface* ice = webrtc::CreateIceCandidate(candidate.sdpMid, candidate.sdpMLineIndex, candidate.candidate, &error);
+			webrtc::SdpParseError error;
+			webrtc::IceCandidateInterface* ice = webrtc::CreateIceCandidate(candidate.sdpMid, candidate.sdpMLineIndex, candidate.candidate, &error);
 
-		if (ice) {
-			if (!_socket->pending_remote_description() && !_socket->current_remote_description()) {
-				_pending_candidates.push_back(([=]() {
+			if (ice) {
+				if (!_socket->pending_remote_description() && !_socket->current_remote_description()) {
+					_pending_candidates.push_back([=]() {
+						if (_socket->AddIceCandidate(ice)) {
+							return resolve();
+						}
+
+						if (error.description.empty()) {
+							if (!_socket->pending_remote_description() && !_socket->current_remote_description()) {
+								return reject(Error::New("ICE candidates can't be added without any remote session description.", __FILE__, __LINE__));
+							}
+
+							return reject(Error::New("Candidate cannot be used.", __FILE__, __LINE__));
+						}
+						});
+				}
+				else {
 					if (_socket->AddIceCandidate(ice)) {
 						return resolve();
 					}
@@ -154,26 +168,10 @@ std::shared_ptr<Promise<>> RTCPeerConnectionInternal::AddIceCandidate(const RTCP
 
 						return reject(Error::New("Candidate cannot be used.", __FILE__, __LINE__));
 					}
-					}, [=]() {
-						reject(Error::New("Candidate cannot be used.", __FILE__, __LINE__));
-						}));
-			}
-			else {
-				if (_socket->AddIceCandidate(ice)) {
-					return resolve();
-				}
-
-				if (error.description.empty()) {
-					if (!_socket->pending_remote_description() && !_socket->current_remote_description()) {
-						return reject(Error::New("ICE candidates can't be added without any remote session description.", __FILE__, __LINE__));
-					}
-
-					return reject(Error::New("Candidate cannot be used.", __FILE__, __LINE__));
 				}
 			}
-		}
 
-		return reject(Error::New(error.description, __FILE__, __LINE__));
+			return reject(Error::New(error.description, __FILE__, __LINE__));
 		});
 }
 
@@ -190,23 +188,23 @@ std::shared_ptr<RTCPeerConnection::RTCRtpSender> RTCPeerConnectionInternal::AddT
 
 std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> RTCPeerConnectionInternal::CreateAnswer(const RTCPeerConnection::RTCAnswerOptions& options) {
 	return Promise<RTCPeerConnection::RTCSessionDescription>::New([=](
-		const Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback& resolve, 
+		const Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback& resolve,
 		const Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback& reject) {
-		rtc::scoped_refptr<CreateOfferAnswerObserver> observer = rtc::make_ref_counted<CreateOfferAnswerObserver>(resolve, reject);
-		webrtc::PeerConnectionInterface::RTCOfferAnswerOptions answer_options(
-			true, // offer_to_receive_video
-			true, // offer_to_receive_audio
-			options.voiceActivityDetection, // voice_activity_detection
-			false, // ice_restart 
-			true  // use_rtp_mux
-		);
+			rtc::scoped_refptr<CreateOfferAnswerObserver> observer = rtc::make_ref_counted<CreateOfferAnswerObserver>(resolve, reject);
+			webrtc::PeerConnectionInterface::RTCOfferAnswerOptions answer_options(
+				true, // offer_to_receive_video
+				true, // offer_to_receive_audio
+				options.voiceActivityDetection, // voice_activity_detection
+				false, // ice_restart 
+				true  // use_rtp_mux
+			);
 
-		if (observer.get()) {
-			_socket->CreateAnswer(observer.get(), answer_options);
-		}
-		else {
-			reject(Error::New("CreateOfferAnswerObserver Failed", __FILE__, __LINE__));
-		}
+			if (observer.get()) {
+				_socket->CreateAnswer(observer.get(), answer_options);
+			}
+			else {
+				reject(Error::New("CreateOfferAnswerObserver Failed", __FILE__, __LINE__));
+			}
 		});
 }
 
@@ -324,7 +322,7 @@ std::shared_ptr<Promise<> > RTCPeerConnectionInternal::SetRemoteDescription(cons
 			auto error = SDP2SDP(sdp, &desc);
 
 			if (!error) {
-				auto promise = Promise<>::New([=](const Promise<>::FullFilledCallback& res, const Promise<>::RejectedCallback& rej) {
+				Promise<>::New([=](const Promise<>::FullFilledCallback& res, const Promise<>::RejectedCallback& rej) {
 					rtc::scoped_refptr<SetSessionDescriptionObserver> observer = rtc::make_ref_counted<SetSessionDescriptionObserver>(res, rej);
 					_socket->SetRemoteDescription(observer.get(), desc);
 					})->Then([=]() {

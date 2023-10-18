@@ -35,6 +35,7 @@ namespace crtc {
 	class RTCDataChannelInternal : public RTCDataChannel, public webrtc::DataChannelObserver {
 	public:
 		explicit RTCDataChannelInternal(const rtc::scoped_refptr<webrtc::DataChannelInterface>& channel);
+		virtual ~RTCDataChannelInternal() override;
 
 		int Id() override;
 		std::string Label() override;
@@ -52,8 +53,6 @@ namespace crtc {
 		void Send(const unsigned char* data, size_t length, bool binary = true) override;
 
 	protected:
-		~RTCDataChannelInternal() override;
-
 		void OnStateChange() override;
 		void OnMessage(const webrtc::DataBuffer& buffer) override;
 		void OnBufferedAmountChange(uint64_t previous_amount) override;

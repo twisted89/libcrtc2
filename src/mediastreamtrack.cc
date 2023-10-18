@@ -58,6 +58,7 @@ void MediaStreamTrackInternal::OnChanged() {
 	}
 }
 
+/*
 webrtc::MediaStreamTrackInterface* MediaStreamTrackInternal::New(const std::shared_ptr<MediaStreamTrack>& track) {
 	if (track) {
 		MediaStreamTrackInternal track_internal(track);
@@ -66,8 +67,9 @@ webrtc::MediaStreamTrackInterface* MediaStreamTrackInternal::New(const std::shar
 
 	return nullptr;
 }
+*/
 
-std::shared_ptr<MediaStreamTrack> MediaStreamTrackInternal::New(const webrtc::MediaStreamTrackInterface* track) {
+std::shared_ptr<MediaStreamTrack> MediaStreamTrackInternal::New(webrtc::MediaStreamTrackInterface* track) {
 	if (track) {
 		MediaStreamTrack::Type kind;
 		webrtc::MediaSourceInterface* source = nullptr;
