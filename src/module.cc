@@ -38,11 +38,12 @@
 using namespace crtc;
 
 volatile intptr_t ModuleInternal::pending_events = 0;
-Callback asyncCallback;
+synchronized_callback<> asyncCallback;
 
-class Thread : public rtc::AutoSocketServerThread {
+class Thread : public rtc::AutoThread {
 public:
-    Thread() : rtc::AutoSocketServerThread(&_ss) {}
+    Thread() : rtc::AutoThread() {
+    }
 
     ~Thread() {
         rtc::Thread::Stop();
@@ -53,7 +54,7 @@ public:
         const webrtc::Location& location) override
     {
         asyncCallback();
-        rtc::Thread::PostTask(std::move(task), location);
+        rtc::Thread::PostTaskImpl(std::move(task), traits, location);
     }
 
     virtual void PostDelayedTaskImpl(absl::AnyInvocable<void()&&> task,
@@ -62,11 +63,8 @@ public:
         const webrtc::Location& location) override
     {
         asyncCallback();
-        rtc::Thread::PostDelayedTask(std::move(task), delay, location);
+        rtc::Thread::PostDelayedTaskImpl(std::move(task), delay, traits, location);
     }
-
-private:
-    rtc::PhysicalSocketServer _ss;
 };
 
 Thread currentThread;
