@@ -80,17 +80,13 @@ if not os.path.exists(webrtc_sync):
   os.chdir(webrtc_dir)
 
   if not os.path.exists(webrtc_src_dir):
-    subprocess.call([fetch_cmd, '--nohooks', 'webrtc'])
+    subprocess.call([fetch_cmd, '--nohooks --no-history', 'webrtc'])
   else:
     os.chdir(webrtc_src_dir)
 
     subprocess.check_call(['git', 'fetch', 'origin'])
     subprocess.check_call(['git', 'reset', '--hard', 'origin/master'])
     subprocess.check_call(['git', 'checkout', 'origin/master'])
-    
-    if subprocess.check_output(['git', 'branch', '--list', 'libcrtc']):
-      subprocess.check_call(['git', 'branch', '-D', 'libcrtc'])
-
     subprocess.check_call(['git', 'clean', '-f'])
 
     os.chdir(webrtc_dir)
@@ -98,8 +94,6 @@ if not os.path.exists(webrtc_sync):
   subprocess.check_call([gclient_cmd, 'sync', '--with_branch_heads', '--force'])
 
   os.chdir(webrtc_src_dir)
-
-  subprocess.check_call(['git', 'checkout', '-b', 'libcrtc', 'refs/remotes/branch-heads/59'])
 
   if os.path.exists(os.path.join(webrtc_src_dir, 'BUILD.gn')):
     os.remove(os.path.join(webrtc_src_dir, 'BUILD.gn'))
