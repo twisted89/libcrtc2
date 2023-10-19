@@ -26,17 +26,28 @@
 #include "rtcpeerconnection.h"
 #include "rtcdatachannel.h"
 #include "mediastream.h"
+#include "api/audio_codecs/builtin_audio_decoder_factory.h"
+#include "api/audio_codecs/builtin_audio_encoder_factory.h"
+#include "api/video_codecs/video_decoder_factory.h"
+#include "api/video_codecs/video_decoder_factory_template.h"
+#include "api/video_codecs/video_decoder_factory_template_open_h264_adapter.h"
+#include "api/video_codecs/video_encoder_factory.h"
+#include "api/video_codecs/video_encoder_factory_template.h"
+#include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
 
 using namespace crtc;
 
 std::unique_ptr<rtc::Thread> RTCPeerConnectionInternal::network_thread;
 std::unique_ptr<rtc::Thread> RTCPeerConnectionInternal::worker_thread;
+std::unique_ptr<webrtc::TaskQueueFactory> RTCPeerConnectionInternal::task_queue;
 rtc::scoped_refptr<webrtc::AudioDeviceModule> RTCPeerConnectionInternal::audio_device;
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> RTCPeerConnectionInternal::factory;
 
 void RTCPeerConnectionInternal::Init() {
 	network_thread = rtc::Thread::CreateWithSocketServer();
 	network_thread->SetName("network", nullptr);
+
+	task_queue = webrtc::CreateDefaultTaskQueueFactory();
 
 	if (!network_thread->Start()) {
 
@@ -49,7 +60,7 @@ void RTCPeerConnectionInternal::Init() {
 
 	}
 
-	audio_device = webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kDummyAudio, nullptr);
+	audio_device = webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kDummyAudio, task_queue.get());
 
 	if (!audio_device->Initialized()) {
 		audio_device->Init();
@@ -70,10 +81,10 @@ void RTCPeerConnectionInternal::Init() {
 		worker_thread.get(),
 		rtc::ThreadManager::Instance()->CurrentThread(),
 		std::move(audio_device),
-		nullptr, //  rtc::scoped_refptr<AudioEncoderFactory> audio_encoder_factory,
-		nullptr, //rtc::scoped_refptr<AudioDecoderFactory> audio_decoder_factory,
-		nullptr, //std::unique_ptr<VideoEncoderFactory> video_encoder_factory,
-		nullptr,
+		webrtc::CreateBuiltinAudioEncoderFactory(),
+		webrtc::CreateBuiltinAudioDecoderFactory(),
+		std::make_unique<webrtc::VideoEncoderFactoryTemplate<webrtc::OpenH264EncoderTemplateAdapter>>(),
+		std::make_unique<webrtc::VideoDecoderFactoryTemplate<webrtc::OpenH264DecoderTemplateAdapter>>(),
 		nullptr, //rtc::scoped_refptr<AudioMixer> audio_mixer,
 		nullptr, //rtc::scoped_refptr<AudioProcessing> audio_processing,
 		nullptr, //std::unique_ptr<AudioFrameProcessor> owned_audio_frame_processor,
