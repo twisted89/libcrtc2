@@ -6,6 +6,9 @@ import subprocess
 import shutil
 import tarfile
 import platform
+from io import BytesIO
+from urllib.request import urlopen
+from zipfile import ZipFile
 
 root_dir = os.path.dirname(os.path.realpath(__file__))
 dist_dir = os.path.join(root_dir, 'dist')
@@ -17,6 +20,7 @@ third_party_dir = os.path.join(root_dir, '3dparty')
 fetch_cmd = 'fetch'
 gclient_cmd = 'gclient'
 gn_cmd = 'gn'
+ninja_cmd = 'ninja'
 
 target_platform = sys.platform
 
@@ -25,8 +29,11 @@ if sys.platform.startswith('linux'):
 elif sys.platform.startswith('win32'):
   target_platform = 'win32'
   fetch_cmd = 'fetch.bat'
-  gclient_cmd = 'glient.bat'
+  gclient_cmd = 'gclient.bat'
   gn_cmd = 'gn.bat'
+  ninja_cmd = 'ninja.bat'
+  os.environ['DEPOT_TOOLS_WIN_TOOLCHAIN'] = '0'
+  os.environ['vs2022_install'] = 'C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional'
 
 target_os = target_platform
 target_cpu = platform.machine()
@@ -37,11 +44,6 @@ elif (target_cpu == 'i386'):
   target_cpu = 'x86'
 
 release_name = 'master'
-
-try:
-  release_name = ''.join(subprocess.check_output(['git', 'describe', '--abbrev=0', '--tags']).split())
-except ValueError:
-  release_name = 'master'
 
 if (os.environ.get('WEBRTC_TARGET_OS')):
   target_os = os.environ['WEBRTC_TARGET_OS']
@@ -55,9 +57,6 @@ def build_archive():
   with tarfile.open(os.path.join(dist_dir, pkg_name), "w:gz") as tar:
     tar.add(dist_include_dir, arcname='include')
     tar.add(dist_lib_dir, arcname='lib')
-    tar.add(os.path.join(dist_dir, 'LICENSE'), arcname='LICENSE')
-    tar.add(os.path.join(dist_dir, 'WEBRTC_LICENSE'), arcname='WEBRTC_LICENSE')
-    tar.add(os.path.join(dist_dir, 'WEBRTC_LICENSE_THIRD_PARTY'), arcname='WEBRTC_LICENSE_THIRD_PARTY')
 
 depot_tools_dir = os.path.join(third_party_dir, 'depot_tools')
 webrtc_dir = os.path.join(third_party_dir, 'webrtc')
@@ -69,7 +68,7 @@ if not os.path.exists(third_party_dir):
   os.mkdir(third_party_dir)
 
 if not os.path.exists(depot_tools_dir):
-  subprocess.check_call(['git', 'clone', 'https://chromium.googlesource.com/chromium/tools/depot_tools.git', depot_tools_dir])
+    subprocess.check_call(['git', 'clone', 'https://chromium.googlesource.com/chromium/tools/depot_tools.git', depot_tools_dir])
 
 os.environ['PATH'] += os.pathsep + depot_tools_dir
 
@@ -80,7 +79,7 @@ if not os.path.exists(webrtc_sync):
   os.chdir(webrtc_dir)
 
   if not os.path.exists(webrtc_src_dir):
-    subprocess.call([fetch_cmd, '--nohooks --no-history', 'webrtc'])
+    subprocess.call([fetch_cmd, '--nohooks', '--nohistory', 'webrtc'])
   else:
     os.chdir(webrtc_src_dir)
 
@@ -103,9 +102,7 @@ if not os.path.exists(webrtc_sync):
 
   os.symlink(os.path.join(root_dir, 'root.gn'), os.path.join(webrtc_src_dir, 'BUILD.gn'))
   open(webrtc_sync, 'a').close()
-
-  os.chdir(root_dir)
-
+  
 os.chdir(webrtc_src_dir)
 gn_flags = '--args=rtc_include_tests=false is_component_build=false rtc_use_h264=true rtc_enable_protobuf=false treat_warnings_as_errors=false use_custom_libcxx=false'
 
@@ -126,13 +123,15 @@ if (target_cpu != platform.machine()):
   gn_flags += ' target_cpu="' + target_cpu + '"'
 
 subprocess.check_call([gn_cmd, 'gen', os.path.join(out_dir, target_os, target_cpu), gn_flags])
-os.chdir(root_dir)
+
+os.chdir(webrtc_dir)
 
 if os.environ.get('WEBRTC_EXAMPLES') == 'true':
-  subprocess.check_call(['ninja', '-C', os.path.join(out_dir, target_os, target_cpu), 'crtc-examples'])
+  subprocess.check_call([ninja_cmd, '-C', os.path.join(out_dir, target_os, target_cpu), 'crtc-examples'])
 else:
-  subprocess.check_call(['ninja', '-C', os.path.join(out_dir, target_os, target_cpu), 'crtc'])
+  subprocess.check_call([ninja_cmd, '-C', os.path.join(out_dir, target_os, target_cpu), 'crtc'])
 
+os.chdir(root_dir)
 if not os.path.exists(dist_dir):
   os.mkdir(dist_dir)
 
@@ -147,15 +146,13 @@ if os.path.exists(dist_lib_dir):
 os.mkdir(dist_lib_dir)
 
 shutil.copy(os.path.join(root_dir, 'include', 'crtc.h'), dist_include_dir)
-shutil.copyfile(os.path.join(root_dir, 'LICENSE'), os.path.join(dist_dir, 'LICENSE'))
-shutil.copyfile(os.path.join(webrtc_src_dir, 'webrtc', 'LICENSE'), os.path.join(dist_dir, 'WEBRTC_LICENSE'))
-shutil.copyfile(os.path.join(webrtc_src_dir, 'webrtc', 'LICENSE_THIRD_PARTY'), os.path.join(dist_dir, 'WEBRTC_LICENSE_THIRD_PARTY'))
 
 if sys.platform.startswith('linux'):
   shutil.copy(os.path.join(os.path.join(out_dir, target_os, target_cpu), 'libcrtc.so'), dist_lib_dir)
 
 elif sys.platform.startswith('win32'):
-  shutil.copy(os.path.join(os.path.join(out_dir, target_os, target_cpu), 'libcrtc.dll'), dist_lib_dir)
+  shutil.copy(os.path.join(os.path.join(out_dir, target_os, target_cpu), 'crtc.dll'), dist_lib_dir)
+  shutil.copy(os.path.join(os.path.join(out_dir, target_os, target_cpu), 'crtc.dll.lib'), os.path.join(dist_lib_dir, 'crtc.lib'))
 
 elif sys.platform.startswith('darwin'):
   shutil.copy(os.path.join(os.path.join(out_dir, target_os, target_cpu), 'libcrtc.dylib'), dist_lib_dir)
