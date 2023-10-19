@@ -32,6 +32,7 @@
 
 #include <api/peer_connection_interface.h>
 #include <api/create_peerconnection_factory.h>
+#include <api/task_queue/default_task_queue_factory.h>
 //#include <media/engine/webrtcvideodecoderfactory.h>
 //#include <media/engine/webrtcvideoencoderfactory.h>
 #include <media/engine/webrtc_video_engine.h>
@@ -52,6 +53,7 @@ namespace crtc {
 
 		static std::unique_ptr<rtc::Thread> network_thread;
 		static std::unique_ptr<rtc::Thread> worker_thread;
+		static std::unique_ptr<webrtc::TaskQueueFactory> task_queue;
 		static rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device;
 		static rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
 
