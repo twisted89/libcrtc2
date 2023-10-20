@@ -30,7 +30,7 @@
 
 using namespace crtc;
 
-std::shared_ptr<ArrayBuffer> ArrayBuffer::New(const std::string &data) {
+std::shared_ptr<ArrayBuffer> ArrayBuffer::New(const String &data) {
   return std::make_shared<ArrayBufferInternal>(reinterpret_cast<const uint8_t*>(data.data()), data.size());
 }
 
@@ -100,6 +100,6 @@ const uint8_t *ArrayBufferInternal::Data() const {
   return _data;
 }
 
-std::string ArrayBufferInternal::ToString() const {
-  return std::string(reinterpret_cast<const char *>(_data), _byteLength);
+String ArrayBufferInternal::ToString() const {
+  return String(reinterpret_cast<const char *>(_data), _byteLength);
 }

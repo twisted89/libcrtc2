@@ -1,0 +1,73 @@
+#include "Utils.hpp"
+
+namespace crtc
+{
+	class String::Impl
+	{
+	public:
+		~Impl()
+		{
+			if(text)
+				free(text);
+		}
+
+		Impl() : text(nullptr), length(0) { }
+
+		Impl(char const* const t) : text(strdup(t)), length(strlen(t)){}
+
+		Impl(const char* t, size_t len) : text(nullptr), length(len) {
+			text = reinterpret_cast<char *>(malloc(length));
+			if(text)
+				memcpy(text, t, length);
+		}
+
+		Impl* clone() const
+		{
+			return new Impl(text, length);
+		}
+
+		char* text;
+		size_t length;
+	};
+
+	String::~String()
+	{
+		delete impl;
+	}
+
+	String::String() : impl(new Impl()) {}
+
+	String::String(const char* text) : impl(new Impl(text)) {}
+
+	String::String(const char* text, size_t length) : impl(new Impl(text, length)) {}
+
+	String::String(const String& other) : impl(other.impl->clone()) {}
+
+	String& String::swap(String& other)
+	{
+		std::swap(impl, other.impl);
+		return *this;
+	}
+
+	size_t String::size() const
+	{
+		return impl->length;
+	}
+
+	String& String::operator=(String rhs)
+	{
+		rhs.swap(*this);
+		return *this;
+	}
+
+	String& String::operator=(const char* text)
+	{
+		return *this = String(text);
+	}
+	
+	const char* String::get() const
+	{
+		return impl->text;
+	}
+
+}

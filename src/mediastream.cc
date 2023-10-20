@@ -65,8 +65,8 @@ MediaStreamInternal::~MediaStreamInternal() {
 	_stream->UnregisterObserver(this);
 }
 
-std::string MediaStreamInternal::Id() const {
-	return _stream->id();
+String MediaStreamInternal::Id() const {
+	return String(_stream->id().c_str());
 }
 
 
@@ -113,11 +113,11 @@ void MediaStreamInternal::RemoveTrack(const std::shared_ptr<MediaStreamTrack>& t
 	*/
 }
 
-std::shared_ptr<MediaStreamTrack> MediaStreamInternal::GetTrackById(const std::string& id) const {
-	rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = _stream->FindAudioTrack(id);
+std::shared_ptr<MediaStreamTrack> MediaStreamInternal::GetTrackById(const String& id) const {
+	rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = _stream->FindAudioTrack(std::string(id));
 
 	if (!track.get()) {
-		track = _stream->FindVideoTrack(id);
+		track = _stream->FindVideoTrack(std::string(id));
 	}
 
 	if (track.get()) {

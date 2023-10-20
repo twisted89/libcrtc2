@@ -44,7 +44,7 @@ namespace crtc {
 		uint8_t* Data() override;
 		const uint8_t* Data() const override;
 
-		std::string ToString() const override;
+		String ToString() const override;
 
 		int Channels() const override;
 		int SampleRate() const override;

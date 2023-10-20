@@ -28,7 +28,7 @@
 
 using namespace crtc;
 
-ErrorInternal::ErrorInternal(const std::string &message, const std::string &fileName, int lineNumber) :
+ErrorInternal::ErrorInternal(const String &message, const String &fileName, int lineNumber) :
   _message(message),
   _filename(fileName),
   _linenumber(lineNumber)
@@ -38,22 +38,22 @@ ErrorInternal::~ErrorInternal() {
 
 }
 
-std::shared_ptr<Error> Error::New(std::string message, std::string fileName, int lineNumber) {
+std::shared_ptr<Error> Error::New(String message, String fileName, int lineNumber) {
   return std::make_shared<ErrorInternal>(message, fileName, lineNumber);
 }
 
-std::string ErrorInternal::Message() const {
-  return _message;
+String ErrorInternal::Message() const {
+  return String(_message.c_str());
 }
 
-std::string ErrorInternal::FileName() const {
-  return _filename;
+String ErrorInternal::FileName() const {
+  return String(_filename.c_str());
 }
 
 int ErrorInternal::LineNumber() const {
   return _linenumber;
 }
 
-std::string ErrorInternal::ToString() const {
-  return _name + ": " + _message;
+String ErrorInternal::ToString() const {
+  return String((_name + ": " + _message).c_str());
 }

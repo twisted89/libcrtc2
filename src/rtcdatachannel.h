@@ -38,7 +38,7 @@ namespace crtc {
 		virtual ~RTCDataChannelInternal() override;
 
 		int Id() override;
-		std::string Label() override;
+		String Label() override;
 		uint64_t BufferedAmount() override;
 		uint64_t BufferedAmountLowThreshold() override;
 		void SetBufferedAmountLowThreshold(uint64_t threshold = 0) override;
@@ -46,7 +46,7 @@ namespace crtc {
 		uint16_t MaxRetransmits() override;
 		bool Negotiated() override;
 		bool Ordered() override;
-		std::string Protocol() override;
+		String Protocol() override;
 		RTCDataChannel::State ReadyState() override;
 		void Close() override;
 		void Send(const std::shared_ptr<ArrayBuffer>& data, bool binary = true) override;
@@ -72,7 +72,7 @@ namespace crtc {
 		uint8_t* Data() override;
 		const uint8_t* Data() const override;
 
-		std::string ToString() const override;
+		String ToString() const override;
 	protected:
 		explicit WrapRtcBuffer(const rtc::CopyOnWriteBuffer& buffer);
 		~WrapRtcBuffer();

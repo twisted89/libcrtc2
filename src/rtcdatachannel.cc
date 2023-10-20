@@ -50,8 +50,8 @@ int RTCDataChannelInternal::Id() {
 	return _channel->id();
 }
 
-std::string RTCDataChannelInternal::Label() {
-	return _channel->label();
+String RTCDataChannelInternal::Label() {
+	return String(_channel->label().c_str());
 }
 
 uint64_t RTCDataChannelInternal::BufferedAmount() {
@@ -82,8 +82,8 @@ bool RTCDataChannelInternal::Ordered() {
 	return _channel->ordered();
 }
 
-std::string RTCDataChannelInternal::Protocol() {
-	return _channel->protocol();
+String RTCDataChannelInternal::Protocol() {
+	return String(_channel->protocol().c_str());
 }
 
 RTCDataChannel::State RTCDataChannelInternal::ReadyState() {
@@ -202,8 +202,8 @@ const uint8_t* WrapRtcBuffer::Data() const {
 	return _data.data();
 }
 
-std::string WrapRtcBuffer::ToString() const {
-	return std::string(reinterpret_cast<const char*>(_data.data()), _data.size());
+String WrapRtcBuffer::ToString() const {
+	return String(reinterpret_cast<const char*>(_data.data()), _data.size());
 }
 
 RTCDataChannel::RTCDataChannel() {

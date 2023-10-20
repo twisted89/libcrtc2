@@ -164,8 +164,8 @@ bool MediaStreamTrackInternal::Muted() const {
 	return (_source->state() == webrtc::MediaSourceInterface::kMuted);
 }
 
-std::string MediaStreamTrackInternal::Id() const {
-	return _track->id();
+String MediaStreamTrackInternal::Id() const {
+	return String(_track->id().c_str());
 }
 
 MediaStreamTrack::Type MediaStreamTrackInternal::Kind() const {

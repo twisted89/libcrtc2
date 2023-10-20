@@ -41,14 +41,13 @@
 
 namespace crtc {
 	class VideoSourceInternal : public VideoSource, public MediaStreamInternal, public sigslot::has_slots<> {
-		friend class Let<VideoSourceInternal>;
 		friend class VideoSource;
 
 	public:
-		std::string Id() const override;
+		String Id() const override;
 		//void AddTrack(const Let<MediaStreamTrack>& track) override;
 		//void RemoveTrack(const Let<MediaStreamTrack>& track) override;
-		Let<MediaStreamTrack> GetTrackById(const std::string& id) const override;
+		Let<MediaStreamTrack> GetTrackById(const String& id) const override;
 		MediaStreamTracks GetAudioTracks() const override;
 		MediaStreamTracks GetVideoTracks() const override;
 		Let<MediaStream> Clone() override;

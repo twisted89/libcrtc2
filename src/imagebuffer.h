@@ -57,7 +57,7 @@ namespace crtc {
 		uint8_t* Data() override;
 		const uint8_t* Data() const override;
 
-		std::string ToString() const override;
+		String ToString() const override;
 
 	protected:
 		explicit ImageBufferInternal(const std::shared_ptr<ArrayBuffer>& buffer, int width, int height);
@@ -109,7 +109,7 @@ namespace crtc {
 		uint8_t* Data() override;
 		const uint8_t* Data() const override;
 
-		std::string ToString() const override;
+		String ToString() const override;
 	protected:
 		explicit WrapVideoFrameBuffer(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& source);
 		~WrapVideoFrameBuffer();

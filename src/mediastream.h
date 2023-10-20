@@ -41,12 +41,12 @@ namespace crtc {
 		static std::shared_ptr<MediaStream> New(webrtc::MediaStreamInterface* stream);
 		static std::shared_ptr<MediaStream> New(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
 
-		std::string Id() const override;
+		String Id() const override;
 
 		void AddTrack(const std::shared_ptr<MediaStreamTrack>& track) override;
 		void RemoveTrack(const std::shared_ptr<MediaStreamTrack>& track) override;
 
-		std::shared_ptr<MediaStreamTrack> GetTrackById(const std::string& id) const override;
+		std::shared_ptr<MediaStreamTrack> GetTrackById(const String& id) const override;
 
 		intptr_t GetStream() override;
 

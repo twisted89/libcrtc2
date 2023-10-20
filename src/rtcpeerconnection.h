@@ -57,7 +57,7 @@ namespace crtc {
 		static rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device;
 		static rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
 
-		std::shared_ptr<RTCDataChannel> CreateDataChannel(const std::string& label, const RTCDataChannelInit& options = RTCDataChannelInit()) override;
+		std::shared_ptr<RTCDataChannel> CreateDataChannel(const String& label, const RTCDataChannelInit& options = RTCDataChannelInit()) override;
 		std::shared_ptr<Promise<>> AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) override;
 		void AddStream(const std::shared_ptr<MediaStream>& stream) override;
 		// Let<RTCPeerConnection::RTCRtpSender> AddTrack(const Let<MediaStreamTrack> &track, const Let<MediaStream> &stream) override;
@@ -97,7 +97,10 @@ namespace crtc {
 					sdp->type = RTCPeerConnection::RTCSessionDescription::kPranswer;
 				}
 
-				if (desc->ToString(&sdp->sdp)) {
+				std::string sdpStr;
+
+				if (desc->ToString(&sdpStr)) {
+					sdp->sdp = sdpStr.c_str();
 					return nullptr;
 				}
 
@@ -126,13 +129,13 @@ namespace crtc {
 					break;
 				}
 
-				*desc = webrtc::CreateSessionDescription(type, sdp.sdp, &error);
+				*desc = webrtc::CreateSessionDescription(type, std::string(sdp.sdp), &error);
 
 				if (*desc) {
 					return nullptr;
 				}
 				else {
-					return Error::New(error.description, __FILE__, __LINE__);
+					return Error::New(error.description.c_str(), __FILE__, __LINE__);
 				}
 			}
 			else {
@@ -185,7 +188,10 @@ namespace crtc {
 				for (const auto& iceserver : config.iceServers) {
 					webrtc::PeerConnectionInterface::IceServer server;
 
-					server.urls = iceserver.urls;
+					for (auto& url : iceserver.urls)
+					{
+						server.urls.emplace_back(url);
+					}
 					server.username = iceserver.username;
 					server.password = iceserver.credential;
 

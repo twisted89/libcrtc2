@@ -112,7 +112,7 @@ const uint8_t* ImageBufferInternal::Data() const {
 	return ArrayBufferInternal::Data();
 }
 
-std::string ImageBufferInternal::ToString() const {
+String ImageBufferInternal::ToString() const {
 	return ArrayBufferInternal::ToString();
 }
 
@@ -242,8 +242,8 @@ const uint8_t* WrapVideoFrameBuffer::Data() const {
 	return _vfb->GetI420()->DataY();
 }
 
-std::string WrapVideoFrameBuffer::ToString() const {
-	return std::string(std::string(reinterpret_cast<const char*>(Data()), ByteLength()));
+String WrapVideoFrameBuffer::ToString() const {
+	return String(reinterpret_cast<const char*>(Data()), ByteLength());
 }
 
 rtc::scoped_refptr<webrtc::VideoFrameBuffer> WrapBufferToVideoFrameBuffer::New(const std::shared_ptr<ArrayBuffer>& source, int width, int height) {

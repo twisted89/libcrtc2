@@ -42,10 +42,10 @@ namespace crtc {
 
 		void Write(const std::shared_ptr<AudioBuffer>& buffer, ErrorCallback callback = ErrorCallback()) override;
 
-		std::string Id() const override;
+		String Id() const override;
 		void AddTrack(const std::shared_ptr<MediaStreamTrack>& track) override;
 		void RemoveTrack(const std::shared_ptr<MediaStreamTrack>& track) override;
-		std::shared_ptr<MediaStreamTrack> GetTrackById(const std::string& id) const override;
+		std::shared_ptr<MediaStreamTrack> GetTrackById(const String& id) const override;
 		intptr_t GetStream() override;
 		MediaStreamTracks GetAudioTracks() const override;
 		MediaStreamTracks GetVideoTracks() const override;

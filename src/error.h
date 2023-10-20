@@ -32,13 +32,13 @@
 namespace crtc {
 	class ErrorInternal : public Error {
 	public:
-		explicit ErrorInternal(const std::string& message, const std::string& fileName, int lineNumber);
+		explicit ErrorInternal(const String& message, const String& fileName, int lineNumber);
 		virtual ~ErrorInternal();
-		std::string Message() const override;
-		std::string FileName() const override;
+		String Message() const override;
+		String FileName() const override;
 		int LineNumber() const override;
 
-		std::string ToString() const override;
+		String ToString() const override;
 
 	protected:
 		std::string _name = "Error";

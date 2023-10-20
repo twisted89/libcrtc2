@@ -51,7 +51,7 @@ void AudioSourceInternal::Write(const std::shared_ptr<AudioBuffer> &buffer, Erro
   _audio->Write(buffer, callback);
 }
 
-std::string AudioSourceInternal::Id() const { 
+String AudioSourceInternal::Id() const {
   return MediaStreamInternal::Id();
 }
 
@@ -65,7 +65,7 @@ void AudioSourceInternal::RemoveTrack(const std::shared_ptr<MediaStreamTrack>& t
 }
 
 
-std::shared_ptr<MediaStreamTrack> AudioSourceInternal::GetTrackById(const std::string &id) const {
+std::shared_ptr<MediaStreamTrack> AudioSourceInternal::GetTrackById(const String&id) const {
   return MediaStreamInternal::GetTrackById(id);
 }
 

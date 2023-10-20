@@ -124,7 +124,7 @@ RTCPeerConnectionInternal::~RTCPeerConnectionInternal() {
 	}
 }
 
-std::shared_ptr<RTCDataChannel> RTCPeerConnectionInternal::CreateDataChannel(const std::string& label, const RTCDataChannelInit& options) {
+std::shared_ptr<RTCDataChannel> RTCPeerConnectionInternal::CreateDataChannel(const String& label, const RTCDataChannelInit& options) {
 	webrtc::DataChannelInit init;
 
 	init.ordered = options.ordered;
@@ -135,7 +135,7 @@ std::shared_ptr<RTCDataChannel> RTCPeerConnectionInternal::CreateDataChannel(con
 	init.id = options.id;
 
 	//rtc::scoped_refptr<webrtc::DataChannelInterface> channel = _socket->CreateDataChannel(label, &init);
-	auto error_or_datachannel = _socket->CreateDataChannelOrError(label, &init);
+	auto error_or_datachannel = _socket->CreateDataChannelOrError(std::string(label), &init);
 	if (!error_or_datachannel.ok())
 	{
 		return nullptr;
@@ -149,7 +149,7 @@ std::shared_ptr<Promise<>> RTCPeerConnectionInternal::AddIceCandidate(const RTCP
 		const Promise<>::FullFilledCallback& resolve,
 		const Promise<>::RejectedCallback& reject) {
 			webrtc::SdpParseError error;
-			webrtc::IceCandidateInterface* ice = webrtc::CreateIceCandidate(candidate.sdpMid, candidate.sdpMLineIndex, candidate.candidate, &error);
+			webrtc::IceCandidateInterface* ice = webrtc::CreateIceCandidate(std::string(candidate.sdpMid), candidate.sdpMLineIndex, std::string(candidate.candidate), &error);
 
 			if (ice) {
 				if (!_socket->pending_remote_description() && !_socket->current_remote_description()) {
@@ -182,7 +182,7 @@ std::shared_ptr<Promise<>> RTCPeerConnectionInternal::AddIceCandidate(const RTCP
 				}
 			}
 
-			return reject(Error::New(error.description, __FILE__, __LINE__));
+			return reject(Error::New(error.description.c_str()));
 		});
 }
 
@@ -508,10 +508,13 @@ void RTCPeerConnectionInternal::OnIceGatheringChange(webrtc::PeerConnectionInter
 void RTCPeerConnectionInternal::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
 	RTCPeerConnection::RTCIceCandidate iceCandidate;
 
-	iceCandidate.sdpMid = candidate->sdp_mid();
+	iceCandidate.sdpMid = candidate->sdp_mid().c_str();
 	iceCandidate.sdpMLineIndex = candidate->sdp_mline_index();
 
-	if (candidate->ToString(&iceCandidate.candidate)) {
+	std::string candidateStr;
+
+	if (candidate->ToString(&candidateStr)) {
+		iceCandidate.candidate = candidateStr.c_str();
 		onicecandidate(iceCandidate);
 	}
 }
@@ -552,7 +555,7 @@ RTCPeerConnection::RTCConfiguration::RTCConfiguration() :
 	rtcpMuxPolicy(kRequire)
 {
 	RTCIceServer iceserver;
-	iceserver.urls.push_back(std::string("stun:stun.l.google.com:19302"));
+	iceserver.urls.push_back(String("stun:stun.l.google.com:19302"));
 	iceServers.push_back(iceserver);
 }
 

@@ -8,7 +8,7 @@ set(ENABLE_ASAN OFF)
 
 project(libcrtc)
 
-set(WEBRTC_SRC ${CMAKE_CURRENT_SOURCE_DIR}/3dparty/depot_tools/webrtc-checkout/src)
+set(WEBRTC_SRC C:/libcrtc2/3dparty/webrtc/src)
 message(${WEBRTC_SRC})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -20,6 +20,8 @@ include_directories(SYSTEM ${WEBRTC_SRC}/third_party/abseil-cpp/)
 include_directories(SYSTEM ${WEBRTC_SRC}/third_party/jsoncpp/source/include/)
 
 add_library(crtc SHARED
+	include/crtc.h
+	include/utils.hpp
 	src/arraybuffer.cc src/arraybuffer.h
 	src/async.cc 
 	src/atomic.cc
@@ -34,9 +36,9 @@ add_library(crtc SHARED
 	src/module.cc src/module.h
 	src/rtcdatachannel.cc src/rtcdatachannel.h
 	src/rtcpeerconnection.cc src/rtcpeerconnection.h
+	src/string.cc
 	src/time.cc
 	src/videoframe.cc src/videoframe.h
-	#src/videosource.cc src/videosource.h
 )
   
 target_link_libraries(crtc
@@ -45,5 +47,5 @@ target_link_libraries(crtc
         )
 
 if(WIN32)
-	target_compile_definitions(crtc PRIVATE CRTC_OS_WIN CRTC_OS_MSVC WEBRTC_WIN NOMINMAX )
+	target_compile_definitions(crtc PRIVATE CRTC_EXPORT NOMINMAX )
 endif()

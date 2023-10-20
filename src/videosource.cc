@@ -85,7 +85,7 @@ Let<VideoSource> VideoSource::New(int width, int height, float fps) {
   return Let<VideoSource>();
 }
 
-std::string VideoSourceInternal::Id() const { 
+String VideoSourceInternal::Id() const {
   return MediaStreamInternal::Id();
 }
 
@@ -97,7 +97,7 @@ void VideoSourceInternal::RemoveTrack(const Let<MediaStreamTrack> &track) {
   return MediaStreamInternal::RemoveTrack(track);
 }
 
-Let<MediaStreamTrack> VideoSourceInternal::GetTrackById(const std::string &id) const {
+Let<MediaStreamTrack> VideoSourceInternal::GetTrackById(const String &id) const {
   return MediaStreamInternal::GetTrackById(id);
 }
 

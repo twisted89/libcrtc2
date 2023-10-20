@@ -45,7 +45,7 @@ namespace crtc {
 		bool Enabled() const override;
 		bool Remote() const override;
 		bool Muted() const override;
-		std::string Id() const override;
+		String Id() const override;
 		MediaStreamTrack::Type Kind() const override;
 		MediaStreamTrack::State ReadyState() const override;
 		std::shared_ptr<MediaStreamTrack> Clone() override;

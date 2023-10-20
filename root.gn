@@ -255,7 +255,7 @@ config("common_config") {
 
       # See https://reviews.llvm.org/D56731 for details about this
       # warning.
-      "-Wctad-maybe-unsupported",
+      #"-Wctad-maybe-unsupported",
     ]
   }
 
@@ -387,6 +387,7 @@ config("common_config") {
       "crtc/src/rtcdatachannel.cc",
       "crtc/src/mediastream.cc",
       "crtc/src/mediastreamtrack.cc",
+      "crtc/src/string.cc",
       "crtc/src/time.cc",
       "crtc/src/audiobuffer.cc",
       "crtc/src/audiosource.cc",

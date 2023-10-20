@@ -45,7 +45,7 @@ namespace crtc {
         uint8_t* Data() override;
         const uint8_t* Data() const override;
 
-        std::string ToString() const override;
+        String ToString() const override;
 
     private:
         bool _alloc;

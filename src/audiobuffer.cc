@@ -57,7 +57,7 @@ const uint8_t* AudioBufferInternal::Data() const {
 	return ArrayBufferInternal::Data();
 }
 
-std::string AudioBufferInternal::ToString() const {
+String AudioBufferInternal::ToString() const {
 	return ArrayBufferInternal::ToString();
 }
 

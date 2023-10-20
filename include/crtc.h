@@ -45,21 +45,7 @@ WebRTC uses Real-Time Protocol to transfer audio and video.
 
 #include <memory>
 #include <vector>
-#include <string>
 #include "utils.hpp"
-
-#if defined(_MSC_VER)
-#ifdef CRTC_EXPORTS
-#define CRTC_EXPORT __declspec(dllexport) // Even though clang will complain about this on Windows it is required to export symbols correctly
-#else
-#define CRTC_EXPORT __declspec(dllimport)
-#endif
-#define CRTC_NO_EXPORT
-#else
-#define CRTC_EXPORT __attribute__((visibility("default")))
-#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
-#endif
-
 
 namespace crtc {
 
@@ -127,13 +113,13 @@ namespace crtc {
 		explicit Error() { }
 		virtual ~Error() { }
 
-		static std::shared_ptr<Error> New(std::string message, std::string fileName = __FILE__, int lineNumber = __LINE__);
+		static std::shared_ptr<Error> New(String message, String fileName = String(reinterpret_cast<const char*>(__FILE__)), int lineNumber = __LINE__);
 
-		virtual std::string Message() const = 0;
-		virtual std::string FileName() const = 0;
+		virtual String Message() const = 0;
+		virtual String FileName() const = 0;
 		virtual int LineNumber() const = 0;
 
-		virtual std::string ToString() const = 0;
+		virtual String ToString() const = 0;
 	};
 
 	typedef synchronized_callback<std::shared_ptr<Error>> ErrorCallback;
@@ -238,7 +224,7 @@ namespace crtc {
 		virtual ~ArrayBuffer() { }
 
 		static std::shared_ptr<ArrayBuffer> New(size_t byteLength = 0);
-		static std::shared_ptr<ArrayBuffer> New(const std::string& data);
+		static std::shared_ptr<ArrayBuffer> New(const String& data);
 		static std::shared_ptr<ArrayBuffer> New(const uint8_t* data, size_t byteLength = 0);
 
 		virtual size_t ByteLength() const = 0;
@@ -248,7 +234,7 @@ namespace crtc {
 		virtual uint8_t* Data() = 0;
 		virtual const uint8_t* Data() const = 0;
 
-		virtual std::string ToString() const = 0;
+		virtual String ToString() const = 0;
 	};
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
@@ -456,7 +442,7 @@ namespace crtc {
 		virtual bool Enabled() const = 0;
 		virtual bool Muted() const = 0;
 		virtual bool Remote() const = 0;
-		virtual std::string Id() const = 0;
+		virtual String Id() const = 0;
 
 		virtual Type Kind() const = 0;
 		virtual State ReadyState() const = 0;
@@ -484,7 +470,7 @@ namespace crtc {
 		MediaStream& operator=(const MediaStream&) = delete;
 
 	public:
-		virtual std::string Id() const = 0;
+		virtual String Id() const = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/addTrack
 
@@ -493,7 +479,7 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/getTrackById
 
-		virtual std::shared_ptr<MediaStreamTrack> GetTrackById(const std::string& id) const = 0;
+		virtual std::shared_ptr<MediaStreamTrack> GetTrackById(const String& id) const = 0;
 
 		virtual intptr_t GetStream() = 0;
 
@@ -622,7 +608,7 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/label
 
-		virtual std::string Label() = 0;
+		virtual String Label() = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/bufferedAmount
 
@@ -651,7 +637,7 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/protocol
 
-		virtual std::string Protocol() = 0;
+		virtual String Protocol() = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/readyState
 
@@ -703,7 +689,8 @@ namespace crtc {
 				maxPacketLifeTime(-1),
 				maxRetransmits(-1),
 				ordered(true),
-				negotiated(false)
+				negotiated(false),
+				protocol()
 			{ }
 
 			int id;
@@ -711,7 +698,7 @@ namespace crtc {
 			int maxRetransmits;
 			bool ordered;
 			bool negotiated;
-			std::string protocol;
+			String protocol;
 		};
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCSessionDescription
@@ -725,7 +712,7 @@ namespace crtc {
 			};
 
 			RTCSdpType type;
-			std::string sdp;
+			String sdp;
 		};
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/signalingState
@@ -785,18 +772,18 @@ namespace crtc {
 		// \sa https://developer.mozilla.org/en/docs/Web/API/RTCIceCandidate
 
 		struct CRTC_EXPORT RTCIceCandidate {
-			std::string candidate;
-			std::string sdpMid;
+			String candidate;
+			String sdpMid;
 			uint32_t sdpMLineIndex;
 		};
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCIceServer
 
 		struct CRTC_EXPORT RTCIceServer {
-			std::string credential;
-			std::string credentialType;
-			std::string username;
-			std::vector<std::string> urls;
+			String credential;
+			String credentialType;
+			String username;
+			std::vector<String> urls;
 		};
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCConfiguration
@@ -840,7 +827,7 @@ namespace crtc {
 
 		static std::shared_ptr<RTCPeerConnection> New(const RTCConfiguration& config = RTCConfiguration());
 
-		virtual std::shared_ptr<RTCDataChannel> CreateDataChannel(const std::string& label, const RTCDataChannelInit& options = RTCDataChannelInit()) = 0;
+		virtual std::shared_ptr<RTCDataChannel> CreateDataChannel(const String& label, const RTCDataChannelInit& options = RTCDataChannelInit()) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addIceCandidate
 
