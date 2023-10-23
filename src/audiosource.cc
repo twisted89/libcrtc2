@@ -47,7 +47,7 @@ void AudioSourceInternal::Stop() {
   _audio->StopRecording();
 }
 
-void AudioSourceInternal::Write(const std::shared_ptr<AudioBuffer> &buffer, ErrorCallback callback) {
+void AudioSourceInternal::Write(const std::shared_ptr<AudioBuffer> &buffer, std::function<void(std::shared_ptr<Error>)> callback) {
   _audio->Write(buffer, callback);
 }
 
@@ -87,7 +87,7 @@ std::shared_ptr<MediaStream> AudioSourceInternal::Clone() {
 }
 
 void AudioSourceInternal::OnDrain() {
-  ondrain();
+  _ondrain();
 }
 
 std::shared_ptr<AudioSource> AudioSource::New() {

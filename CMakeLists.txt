@@ -8,7 +8,7 @@ set(ENABLE_ASAN OFF)
 
 project(libcrtc)
 
-set(WEBRTC_SRC C:/libcrtc2/3dparty/webrtc/src)
+set(WEBRTC_SRC ${CMAKE_CURRENT_SOURCE_DIR}/3dparty/webrtc/src)
 message(${WEBRTC_SRC})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -21,7 +21,7 @@ include_directories(SYSTEM ${WEBRTC_SRC}/third_party/jsoncpp/source/include/)
 
 add_library(crtc SHARED
 	include/crtc.h
-	include/utils.hpp
+	src/promise.h
 	src/arraybuffer.cc src/arraybuffer.h
 	src/async.cc 
 	src/atomic.cc
@@ -39,7 +39,7 @@ add_library(crtc SHARED
 	src/string.cc
 	src/time.cc
 	src/videoframe.cc src/videoframe.h
-)
+ "src/promise.h")
   
 target_link_libraries(crtc
         PRIVATE

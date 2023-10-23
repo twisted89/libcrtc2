@@ -39,33 +39,40 @@ using namespace crtc;
 
 std::unique_ptr<rtc::Thread> RTCPeerConnectionInternal::network_thread;
 std::unique_ptr<rtc::Thread> RTCPeerConnectionInternal::worker_thread;
+std::unique_ptr<rtc::Thread> RTCPeerConnectionInternal::signal_thread;
 std::unique_ptr<webrtc::TaskQueueFactory> RTCPeerConnectionInternal::task_queue;
 rtc::scoped_refptr<webrtc::AudioDeviceModule> RTCPeerConnectionInternal::audio_device;
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> RTCPeerConnectionInternal::factory;
 
 void RTCPeerConnectionInternal::Init() {
+	task_queue = webrtc::CreateDefaultTaskQueueFactory();
+
 	network_thread = rtc::Thread::CreateWithSocketServer();
 	network_thread->SetName("network", nullptr);
 
-	task_queue = webrtc::CreateDefaultTaskQueueFactory();
-
 	if (!network_thread->Start()) {
+		//TODO
+	}
 
+	signal_thread = rtc::Thread::Create();
+	signal_thread->SetName("signal", nullptr);
+
+	if (!signal_thread->Start()) {
+		//TODO
 	}
 
 	worker_thread = rtc::Thread::Create();
 	worker_thread->SetName("worker", nullptr);
 
 	if (!worker_thread->Start()) {
-
+		//TODO
 	}
 
-	audio_device = webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kDummyAudio, task_queue.get());
+	audio_device = nullptr; // webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kDummyAudio, task_queue.get());
 
-	if (!audio_device->Initialized()) {
+	if (audio_device && !audio_device->Initialized()) {
 		audio_device->Init();
 	}
-
 
 	/*factory = webrtc::CreatePeerConnectionFactory(
 	  network_thread.get(),
@@ -78,8 +85,8 @@ void RTCPeerConnectionInternal::Init() {
 
 	factory = webrtc::CreatePeerConnectionFactory(
 		network_thread.get(),
-		worker_thread.get(),
-		rtc::ThreadManager::Instance()->CurrentThread(),
+		worker_thread.get(), //rtc::ThreadManager::Instance()->CurrentThread(),
+		signal_thread.get(),
 		std::move(audio_device),
 		webrtc::CreateBuiltinAudioEncoderFactory(),
 		webrtc::CreateBuiltinAudioDecoderFactory(),
@@ -92,34 +99,31 @@ void RTCPeerConnectionInternal::Init() {
 }
 
 void RTCPeerConnectionInternal::Dispose() {
-	network_thread->Stop();
-	worker_thread->Stop();
-
+	if (network_thread)
+	{
+		network_thread->Stop();
+		network_thread.release();
+	}
+	if (worker_thread)
+	{
+		worker_thread->Stop();
+		worker_thread.release();
+	}
+	if (signal_thread)
+	{
+		signal_thread->Stop();
+		signal_thread.release();
+	}
 	factory.release();
 	audio_device.release();
-	network_thread.release();
-	worker_thread.release();
 }
 
-RTCPeerConnectionInternal::RTCPeerConnectionInternal(const RTCConfiguration& config) : _factory(factory) {
+RTCPeerConnectionInternal::RTCPeerConnectionInternal() : _factory(factory) {
 	webrtc::PeerConnectionInterface::RTCConfiguration cfg(webrtc::PeerConnectionInterface::RTCConfigurationType::kAggressive);
-
-	auto error = ParseConfiguration(config, &cfg);
-
-	if (!error) {
-		//_socket = _factory->CreatePeerConnection(cfg, nullptr, nullptr, this);
-		webrtc::PeerConnectionDependencies pc_dependencies(this);
-		auto error_or_peer_connection = _factory->CreatePeerConnectionOrError(cfg, std::move(pc_dependencies));
-		if (!error_or_peer_connection.ok())
-		{
-			return;
-		}
-		_socket = std::move(error_or_peer_connection.value());
-	}
 }
 
 RTCPeerConnectionInternal::~RTCPeerConnectionInternal() {
-	if (_socket->signaling_state() != webrtc::PeerConnectionInterface::kClosed) {
+	if (_socket && _socket->signaling_state() != webrtc::PeerConnectionInterface::kClosed) {
 		_socket->Close();
 	}
 }
@@ -134,24 +138,28 @@ std::shared_ptr<RTCDataChannel> RTCPeerConnectionInternal::CreateDataChannel(con
 	init.negotiated = options.negotiated;
 	init.id = options.id;
 
-	//rtc::scoped_refptr<webrtc::DataChannelInterface> channel = _socket->CreateDataChannel(label, &init);
-	auto error_or_datachannel = _socket->CreateDataChannelOrError(std::string(label), &init);
-	if (!error_or_datachannel.ok())
+	if (_socket)
 	{
-		return nullptr;
+		//rtc::scoped_refptr<webrtc::DataChannelInterface> channel = _socket->CreateDataChannel(label, &init);
+		auto error_or_datachannel = _socket->CreateDataChannelOrError(std::string(label), &init);
+		if (!error_or_datachannel.ok())
+		{
+			return nullptr;
+		}
+		return std::make_shared<RTCDataChannelInternal>(std::move(error_or_datachannel.value()));
 	}
 
-	return std::make_shared<RTCDataChannelInternal>(std::move(error_or_datachannel.value()));
+	return nullptr;
 }
 
-std::shared_ptr<Promise<>> RTCPeerConnectionInternal::AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) {
-	return Promise<>::New([=](
+void RTCPeerConnectionInternal::AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) {
+	Promise<>::New([=](
 		const Promise<>::FullFilledCallback& resolve,
 		const Promise<>::RejectedCallback& reject) {
 			webrtc::SdpParseError error;
 			webrtc::IceCandidateInterface* ice = webrtc::CreateIceCandidate(std::string(candidate.sdpMid), candidate.sdpMLineIndex, std::string(candidate.candidate), &error);
 
-			if (ice) {
+			if (ice && _socket) {
 				if (!_socket->pending_remote_description() && !_socket->current_remote_description()) {
 					_pending_candidates.push_back([=]() {
 						if (_socket->AddIceCandidate(ice)) {
@@ -183,11 +191,12 @@ std::shared_ptr<Promise<>> RTCPeerConnectionInternal::AddIceCandidate(const RTCP
 			}
 
 			return reject(Error::New(error.description.c_str()));
-		});
+		})->WaitForResult();
 }
 
 void RTCPeerConnectionInternal::AddStream(const std::shared_ptr<MediaStream>& stream) {
-	_socket->AddStream(reinterpret_cast<webrtc::MediaStreamInterface*>(stream->GetStream()));
+	if (_socket)
+		_socket->AddStream(reinterpret_cast<webrtc::MediaStreamInterface*>(stream->GetStream()));
 }
 
 /*
@@ -197,8 +206,8 @@ std::shared_ptr<RTCPeerConnection::RTCRtpSender> RTCPeerConnectionInternal::AddT
 }
 */
 
-std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> RTCPeerConnectionInternal::CreateAnswer(const RTCPeerConnection::RTCAnswerOptions& options) {
-	return Promise<RTCPeerConnection::RTCSessionDescription>::New([=](
+void RTCPeerConnectionInternal::CreateAnswer(std::function<void(RTCPeerConnection::RTCSessionDescription*)> callback, const RTCAnswerOptions& options) {
+	Promise<RTCPeerConnection::RTCSessionDescription>::New([=](
 		const Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback& resolve,
 		const Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback& reject) {
 			rtc::scoped_refptr<CreateOfferAnswerObserver> observer = rtc::make_ref_counted<CreateOfferAnswerObserver>(resolve, reject);
@@ -210,17 +219,23 @@ std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> RTCPeerConnec
 				true  // use_rtp_mux
 			);
 
-			if (observer.get()) {
+			if (observer.get() && _socket) {
 				_socket->CreateAnswer(observer.get(), answer_options);
 			}
 			else {
 				reject(Error::New("CreateOfferAnswerObserver Failed", __FILE__, __LINE__));
 			}
-		});
+		}
+	)
+	->Then([=](RTCPeerConnection::RTCSessionDescription desc) mutable {
+		callback(&desc);
+		}
+	);
 }
 
-std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> RTCPeerConnectionInternal::CreateOffer(const RTCPeerConnection::RTCOfferOptions& options) {
-	return Promise<RTCPeerConnection::RTCSessionDescription>::New([=](
+void RTCPeerConnectionInternal::CreateOffer(std::function<void(RTCPeerConnection::RTCSessionDescription*)> callback, const RTCOfferOptions& options) {
+
+	Promise<RTCPeerConnection::RTCSessionDescription>::New([=](
 		const Promise<RTCPeerConnection::RTCSessionDescription>::FullFilledCallback& resolve,
 		const Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback& reject)
 		{
@@ -233,13 +248,18 @@ std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> RTCPeerConnec
 				true  // use_rtp_mux
 			);
 
-			if (observer.get()) {
+			if (observer.get() && _socket) {
 				_socket->CreateOffer(observer.get(), offer_options);
 			}
 			else {
 				reject(Error::New("CreateOfferAnswerObserver Failed", __FILE__, __LINE__));
 			}
-		});
+		}
+	)
+	->Then([=](RTCPeerConnection::RTCSessionDescription desc) mutable {
+			callback(&desc);
+		}
+	);
 }
 
 /*
@@ -258,13 +278,15 @@ std::shared_ptr<Promise<RTCPeerConnection::RTCCertificate>> RTCPeerConnectionInt
 
 MediaStreams RTCPeerConnectionInternal::GetLocalStreams() {
 	MediaStreams streams;
-	rtc::scoped_refptr<webrtc::StreamCollectionInterface> lstreams(_socket->local_streams());
+	if (_socket)
+	{
+		rtc::scoped_refptr<webrtc::StreamCollectionInterface> lstreams(_socket->local_streams());
+		for (size_t index = 0; index < lstreams->count(); index++) {
+			auto stream = MediaStreamInternal::New(lstreams->at(index));
 
-	for (size_t index = 0; index < lstreams->count(); index++) {
-		auto stream = MediaStreamInternal::New(lstreams->at(index));
-
-		if (stream) {
-			streams.push_back(stream);
+			if (stream) {
+				streams.push_back(stream);
+			}
 		}
 	}
 
@@ -273,13 +295,15 @@ MediaStreams RTCPeerConnectionInternal::GetLocalStreams() {
 
 MediaStreams RTCPeerConnectionInternal::GetRemoteStreams() {
 	MediaStreams streams;
-	rtc::scoped_refptr<webrtc::StreamCollectionInterface> rstreams(_socket->remote_streams());
+	if (_socket)
+	{
+		rtc::scoped_refptr<webrtc::StreamCollectionInterface> rstreams(_socket->remote_streams());
+		for (size_t index = 0; index < rstreams->count(); index++) {
+			auto stream = MediaStreamInternal::New(rstreams->at(index));
 
-	for (size_t index = 0; index < rstreams->count(); index++) {
-		auto stream = MediaStreamInternal::New(rstreams->at(index));
-
-		if (stream) {
-			streams.push_back(stream);
+			if (stream) {
+				streams.push_back(stream);
+			}
 		}
 	}
 
@@ -287,7 +311,8 @@ MediaStreams RTCPeerConnectionInternal::GetRemoteStreams() {
 }
 
 void RTCPeerConnectionInternal::RemoveStream(const std::shared_ptr<MediaStream>& stream) {
-	_socket->RemoveStream(reinterpret_cast<webrtc::MediaStreamInterface*>(stream->GetStream()));
+	if (_socket)
+		_socket->RemoveStream(reinterpret_cast<webrtc::MediaStreamInterface*>(stream->GetStream()));
 }
 
 /*
@@ -296,43 +321,51 @@ void RTCPeerConnectionInternal::RemoveTrack(const std::shared_ptr<RTCPeerConnect
 }
 */
 
-void RTCPeerConnectionInternal::SetConfiguration(const RTCPeerConnection::RTCConfiguration& config) {
+bool RTCPeerConnectionInternal::SetConfiguration(const RTCPeerConnection::RTCConfiguration& config) {
 	webrtc::PeerConnectionInterface::RTCConfiguration cfg(webrtc::PeerConnectionInterface::RTCConfigurationType::kAggressive);
 
 	auto error = ParseConfiguration(config, &cfg);
 
 	if (!error) {
-		_socket->SetConfiguration(cfg);
+		webrtc::PeerConnectionDependencies pc_dependencies(this);
+		auto error_or_peer_connection = _factory->CreatePeerConnectionOrError(cfg, std::move(pc_dependencies));
+		if (error_or_peer_connection.ok())
+		{
+			_socket = std::move(error_or_peer_connection.value());
+			return true;
+		}
 	}
+
+	return false;
 }
 
-std::shared_ptr<Promise<> > RTCPeerConnectionInternal::SetLocalDescription(const RTCPeerConnection::RTCSessionDescription& sdp) {
-	return Promise<>::New([=](
+void RTCPeerConnectionInternal::SetLocalDescription(const RTCPeerConnection::RTCSessionDescription* sdp) {
+	Promise<>::New([=](
 		const Promise<>::FullFilledCallback& resolve,
 		const Promise<>::RejectedCallback& reject)
 		{
 			webrtc::SessionDescriptionInterface* desc = nullptr;
 			auto error = SDP2SDP(sdp, &desc);
 
-			if (!error) {
+			if (!error && _socket) {
 				rtc::scoped_refptr<SetSessionDescriptionObserver> observer = rtc::make_ref_counted<SetSessionDescriptionObserver>(resolve, reject);
 				_socket->SetLocalDescription(observer.get(), desc);
 			}
 			else {
 				reject(error);
 			}
-		});
+		})->WaitForResult();
 }
 
-std::shared_ptr<Promise<> > RTCPeerConnectionInternal::SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription& sdp) {
-	return Promise<>::New([=](
+void RTCPeerConnectionInternal::SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription* sdp) {
+	Promise<>::New([=](
 		const Promise<>::FullFilledCallback& resolve,
 		const Promise<>::RejectedCallback& reject)
 		{
 			webrtc::SessionDescriptionInterface* desc = nullptr;
 			auto error = SDP2SDP(sdp, &desc);
 
-			if (!error) {
+			if (!error && _socket) {
 				Promise<>::New([=](const Promise<>::FullFilledCallback& res, const Promise<>::RejectedCallback& rej) {
 					rtc::scoped_refptr<SetSessionDescriptionObserver> observer = rtc::make_ref_counted<SetSessionDescriptionObserver>(res, rej);
 					_socket->SetRemoteDescription(observer.get(), desc);
@@ -354,11 +387,11 @@ std::shared_ptr<Promise<> > RTCPeerConnectionInternal::SetRemoteDescription(cons
 			else {
 				reject(error);
 			}
-		});
+		})->WaitForResult();
 }
 
 void RTCPeerConnectionInternal::Close() {
-	if (_socket->signaling_state() != webrtc::PeerConnectionInterface::kClosed) {
+	if (_socket && _socket->signaling_state() != webrtc::PeerConnectionInterface::kClosed) {
 		_socket->Close();
 	}
 }
@@ -366,96 +399,111 @@ void RTCPeerConnectionInternal::Close() {
 
 RTCPeerConnection::RTCSessionDescription RTCPeerConnectionInternal::CurrentLocalDescription() {
 	RTCPeerConnection::RTCSessionDescription sdp;
-	SDP2SDP(_socket->current_local_description(), &sdp);
+	if (_socket)
+		SDP2SDP(_socket->current_local_description(), &sdp);
 	return sdp;
 }
 
 RTCPeerConnection::RTCSessionDescription RTCPeerConnectionInternal::CurrentRemoteDescription() {
 	RTCPeerConnection::RTCSessionDescription sdp;
-	SDP2SDP(_socket->current_remote_description(), &sdp);
+	if (_socket)
+		SDP2SDP(_socket->current_remote_description(), &sdp);
 	return sdp;
 }
 
 RTCPeerConnection::RTCSessionDescription RTCPeerConnectionInternal::LocalDescription() {
 	RTCPeerConnection::RTCSessionDescription sdp;
-	SDP2SDP(_socket->local_description(), &sdp);
+	if (_socket)
+		SDP2SDP(_socket->local_description(), &sdp);
 	return sdp;
 }
 
 RTCPeerConnection::RTCSessionDescription RTCPeerConnectionInternal::PendingLocalDescription() {
 	RTCPeerConnection::RTCSessionDescription sdp;
-	SDP2SDP(_socket->pending_local_description(), &sdp);
+	if (_socket)
+		SDP2SDP(_socket->pending_local_description(), &sdp);
 	return sdp;
 }
 
 RTCPeerConnection::RTCSessionDescription RTCPeerConnectionInternal::PendingRemoteDescription() {
 	RTCPeerConnection::RTCSessionDescription sdp;
-	SDP2SDP(_socket->pending_remote_description(), &sdp);
+	if (_socket)
+		SDP2SDP(_socket->pending_remote_description(), &sdp);
 	return sdp;
 }
 
 RTCPeerConnection::RTCSessionDescription RTCPeerConnectionInternal::RemoteDescription() {
 	RTCPeerConnection::RTCSessionDescription sdp;
-	SDP2SDP(_socket->remote_description(), &sdp);
+	if (_socket)
+		SDP2SDP(_socket->remote_description(), &sdp);
 	return sdp;
 }
 
 RTCPeerConnection::RTCIceConnectionState RTCPeerConnectionInternal::IceConnectionState() {
-	switch (_socket->ice_connection_state()) {
-	case webrtc::PeerConnectionInterface::kIceConnectionNew:
-		return RTCPeerConnection::kNew;
-	case webrtc::PeerConnectionInterface::kIceConnectionChecking:
-		return RTCPeerConnection::kChecking;
-	case webrtc::PeerConnectionInterface::kIceConnectionConnected:
-	case webrtc::PeerConnectionInterface::kIceConnectionMax:
-		return RTCPeerConnection::kConnected;
-	case webrtc::PeerConnectionInterface::kIceConnectionCompleted:
-		return RTCPeerConnection::kCompleted;
-	case webrtc::PeerConnectionInterface::kIceConnectionFailed:
-		return RTCPeerConnection::kFailed;
-	case webrtc::PeerConnectionInterface::kIceConnectionDisconnected:
-		return RTCPeerConnection::kDisconnected;
-	case webrtc::PeerConnectionInterface::kIceConnectionClosed:
-		return RTCPeerConnection::kClosed;
+	if (_socket)
+	{
+		switch (_socket->ice_connection_state()) {
+		case webrtc::PeerConnectionInterface::kIceConnectionNew:
+			return RTCPeerConnection::kNew;
+		case webrtc::PeerConnectionInterface::kIceConnectionChecking:
+			return RTCPeerConnection::kChecking;
+		case webrtc::PeerConnectionInterface::kIceConnectionConnected:
+		case webrtc::PeerConnectionInterface::kIceConnectionMax:
+			return RTCPeerConnection::kConnected;
+		case webrtc::PeerConnectionInterface::kIceConnectionCompleted:
+			return RTCPeerConnection::kCompleted;
+		case webrtc::PeerConnectionInterface::kIceConnectionFailed:
+			return RTCPeerConnection::kFailed;
+		case webrtc::PeerConnectionInterface::kIceConnectionDisconnected:
+			return RTCPeerConnection::kDisconnected;
+		case webrtc::PeerConnectionInterface::kIceConnectionClosed:
+			return RTCPeerConnection::kClosed;
+		}
 	}
 
 	return RTCPeerConnection::kNew;
 }
 
 RTCPeerConnection::RTCIceGatheringState RTCPeerConnectionInternal::IceGatheringState() {
-	switch (_socket->ice_gathering_state()) {
-	case webrtc::PeerConnectionInterface::kIceGatheringNew:
-		return RTCPeerConnection::kNewGathering;
-	case webrtc::PeerConnectionInterface::kIceGatheringGathering:
-		return RTCPeerConnection::kGathering;
-	case webrtc::PeerConnectionInterface::kIceGatheringComplete:
-		return RTCPeerConnection::kComplete;
+	if (_socket)
+	{
+		switch (_socket->ice_gathering_state()) {
+		case webrtc::PeerConnectionInterface::kIceGatheringNew:
+			return RTCPeerConnection::kNewGathering;
+		case webrtc::PeerConnectionInterface::kIceGatheringGathering:
+			return RTCPeerConnection::kGathering;
+		case webrtc::PeerConnectionInterface::kIceGatheringComplete:
+			return RTCPeerConnection::kComplete;
+		}
 	}
 
 	return RTCPeerConnection::kNewGathering;
 }
 
 RTCPeerConnection::RTCSignalingState RTCPeerConnectionInternal::SignalingState() {
-	switch (_socket->signaling_state()) {
-	case webrtc::PeerConnectionInterface::kStable:
-		return RTCPeerConnection::kStable;
-	case webrtc::PeerConnectionInterface::kHaveLocalOffer:
-		return RTCPeerConnection::kHaveLocalOffer;
-	case webrtc::PeerConnectionInterface::kHaveLocalPrAnswer:
-		return RTCPeerConnection::kHaveLocalPrAnswer;
-	case webrtc::PeerConnectionInterface::kHaveRemoteOffer:
-		return RTCPeerConnection::kHaveRemoteOffer;
-	case webrtc::PeerConnectionInterface::kHaveRemotePrAnswer:
-		return RTCPeerConnection::kHaveRemotePrAnswer;
-	case webrtc::PeerConnectionInterface::kClosed:
-		return RTCPeerConnection::kSignalingClosed;
+	if (_socket)
+	{
+		switch (_socket->signaling_state()) {
+		case webrtc::PeerConnectionInterface::kStable:
+			return RTCPeerConnection::kStable;
+		case webrtc::PeerConnectionInterface::kHaveLocalOffer:
+			return RTCPeerConnection::kHaveLocalOffer;
+		case webrtc::PeerConnectionInterface::kHaveLocalPrAnswer:
+			return RTCPeerConnection::kHaveLocalPrAnswer;
+		case webrtc::PeerConnectionInterface::kHaveRemoteOffer:
+			return RTCPeerConnection::kHaveRemoteOffer;
+		case webrtc::PeerConnectionInterface::kHaveRemotePrAnswer:
+			return RTCPeerConnection::kHaveRemotePrAnswer;
+		case webrtc::PeerConnectionInterface::kClosed:
+			return RTCPeerConnection::kSignalingClosed;
+		}
 	}
 
 	return RTCPeerConnection::kStable;
 }
 
 void RTCPeerConnectionInternal::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
-	onsignalingstatechange();
+	_onsignalingstatechange();
 
 	if (new_state == webrtc::PeerConnectionInterface::kClosed) {
 		_event.reset();
@@ -466,21 +514,21 @@ void RTCPeerConnectionInternal::OnSignalingChange(webrtc::PeerConnectionInterfac
 }
 
 void RTCPeerConnectionInternal::OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
-	onaddstream(MediaStreamInternal::New(stream.get()));
+	_onaddstream(MediaStreamInternal::New(stream.get()));
 }
 
 void RTCPeerConnectionInternal::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
-	onremovestream(MediaStreamInternal::New(stream.get()));
+	_onremovestream(MediaStreamInternal::New(stream.get()));
 }
 
 void RTCPeerConnectionInternal::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
 {
-	onaddtrack(MediaStreamTrackInternal::New(transceiver->receiver()->track().get()));
+	_onaddtrack(MediaStreamTrackInternal::New(transceiver->receiver()->track().get()));
 }
 
 void RTCPeerConnectionInternal::OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
 {
-	onremovetrack(MediaStreamTrackInternal::New(receiver->track().get()));
+	_onremovetrack(MediaStreamTrackInternal::New(receiver->track().get()));
 }
 
 void RTCPeerConnectionInternal::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
@@ -488,43 +536,98 @@ void RTCPeerConnectionInternal::OnDataChannel(rtc::scoped_refptr<webrtc::DataCha
 		auto channel = std::make_shared<RTCDataChannelInternal>(data_channel);
 
 		if (channel) {
-			ondatachannel(channel);
+			_ondatachannel(channel);
 		}
 	}
 }
 
 void RTCPeerConnectionInternal::OnRenegotiationNeeded() {
-	onnegotiationneeded();
+	_onnegotiationneeded();
 }
 
 void RTCPeerConnectionInternal::OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) {
-	oniceconnectionstatechange();
+	_oniceconnectionstatechange();
 }
 
 void RTCPeerConnectionInternal::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {
-	onicegatheringstatechange();
+	_onicegatheringstatechange();
 }
 
 void RTCPeerConnectionInternal::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
-	RTCPeerConnection::RTCIceCandidate iceCandidate;
+	auto iceCandidate = std::make_shared<RTCPeerConnection::RTCIceCandidate>();
 
-	iceCandidate.sdpMid = candidate->sdp_mid().c_str();
-	iceCandidate.sdpMLineIndex = candidate->sdp_mline_index();
+	iceCandidate->sdpMid = candidate->sdp_mid().c_str();
+	iceCandidate->sdpMLineIndex = candidate->sdp_mline_index();
 
 	std::string candidateStr;
 
 	if (candidate->ToString(&candidateStr)) {
-		iceCandidate.candidate = candidateStr.c_str();
-		onicecandidate(iceCandidate);
+		iceCandidate->candidate = candidateStr.c_str();
+		_onicecandidate(iceCandidate);
 	}
 }
 
 void RTCPeerConnectionInternal::OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates) {
-	onicecandidatesremoved();
+	_onicecandidatesremoved();
 }
 
 void RTCPeerConnectionInternal::OnIceConnectionReceivingChange(bool receiving) {
 	//oniceconnectionstatechange();
+}
+
+void crtc::RTCPeerConnectionInternal::onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback)
+{
+	_onaddtrack = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onRemoveTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback)
+{
+	_onremovetrack = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onAddStream(std::function<void(const std::shared_ptr<MediaStream>)> callback)
+{
+	_onaddstream = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onRemoveStream(std::function<void(const std::shared_ptr<MediaStream>)> callback)
+{
+	_onremovestream = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onDataChannel(std::function<void(const std::shared_ptr<RTCDataChannel>)> callback)
+{
+	_ondatachannel = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onIceCandidate(std::function<void(const std::shared_ptr<RTCIceCandidate>)> callback)
+{
+	_onicecandidate = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onNegotiationNeeded(std::function<void()> callback)
+{
+	_onnegotiationneeded = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onsignalingstatechange(std::function<void()> callback)
+{
+	_onsignalingstatechange = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onIceGatheringStateChange(std::function<void()> callback)
+{
+	_onicegatheringstatechange = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onIceConnectionStateChange(std::function<void()> callback)
+{
+	_oniceconnectionstatechange = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onIceCandidatesRemoved(std::function<void()> callback)
+{
+	_onicecandidatesremoved = callback;
 }
 
 // DEPRECATED -> //
@@ -545,7 +648,10 @@ void RTCPeerConnectionInternal::OnRemoveStream(webrtc::MediaStreamInterface* str
 
 
 std::shared_ptr<RTCPeerConnection> RTCPeerConnection::New(const RTCPeerConnection::RTCConfiguration& config) {
-	return std::make_shared<RTCPeerConnectionInternal>(config);
+	auto pc = std::make_shared<RTCPeerConnectionInternal>();
+	if (pc && pc->SetConfiguration(config))
+		return pc;
+	return nullptr;
 }
 
 RTCPeerConnection::RTCConfiguration::RTCConfiguration() :

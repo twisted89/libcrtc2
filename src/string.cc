@@ -1,4 +1,4 @@
-#include "Utils.hpp"
+#include "crtc.h"
 
 namespace crtc
 {
@@ -16,9 +16,11 @@ namespace crtc
 		Impl(char const* const t) : text(strdup(t)), length(strlen(t)){}
 
 		Impl(const char* t, size_t len) : text(nullptr), length(len) {
-			text = reinterpret_cast<char *>(malloc(length));
-			if(text)
+			text = reinterpret_cast<char *>(malloc(length + 1));
+			if (text) {
 				memcpy(text, t, length);
+				text[length] = 0;
+			}
 		}
 
 		Impl* clone() const

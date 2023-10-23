@@ -29,6 +29,8 @@
 
 #include "crtc.h"
 #include "event.h"
+#include "utils.hpp"
+#include "promise.h"
 
 #include <api/peer_connection_interface.h>
 #include <api/create_peerconnection_factory.h>
@@ -45,7 +47,7 @@ namespace crtc {
 		friend class RTCPeerConnectionObserver;
 
 	public:
-		explicit RTCPeerConnectionInternal(const RTCConfiguration& config = RTCConfiguration());
+		explicit RTCPeerConnectionInternal();
 		virtual ~RTCPeerConnectionInternal() override;
 
 		static void Init();
@@ -53,33 +55,33 @@ namespace crtc {
 
 		static std::unique_ptr<rtc::Thread> network_thread;
 		static std::unique_ptr<rtc::Thread> worker_thread;
+		static std::unique_ptr<rtc::Thread> signal_thread;
 		static std::unique_ptr<webrtc::TaskQueueFactory> task_queue;
 		static rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device;
 		static rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
 
 		std::shared_ptr<RTCDataChannel> CreateDataChannel(const String& label, const RTCDataChannelInit& options = RTCDataChannelInit()) override;
-		std::shared_ptr<Promise<>> AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) override;
+		void AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) override;
 		void AddStream(const std::shared_ptr<MediaStream>& stream) override;
 		// Let<RTCPeerConnection::RTCRtpSender> AddTrack(const Let<MediaStreamTrack> &track, const Let<MediaStream> &stream) override;
-		std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> CreateAnswer(const RTCPeerConnection::RTCAnswerOptions& options) override;
-		std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> CreateOffer(const RTCPeerConnection::RTCOfferOptions& options) override;
+		void CreateAnswer(std::function<void(RTCPeerConnection::RTCSessionDescription*)> callback, const RTCAnswerOptions& options) override;
+		void CreateOffer(std::function<void(RTCPeerConnection::RTCSessionDescription*)> callback, const RTCOfferOptions& options) override;
 		// Let<Promise<RTCPeerConnection::RTCCertificate>> GenerateCertificate() override;
 		MediaStreams GetLocalStreams() override;
 		MediaStreams GetRemoteStreams() override;
 		void RemoveStream(const std::shared_ptr<MediaStream>& stream) override;
 		// void RemoveTrack(const Let<RTCPeerConnection::RTCRtpSender> &sender) override;
-		void SetConfiguration(const RTCPeerConnection::RTCConfiguration& config) override;
-		std::shared_ptr<Promise<>> SetLocalDescription(const RTCPeerConnection::RTCSessionDescription& sdp) override;
-		std::shared_ptr<Promise<>> SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription& sdp) override;
+		void SetLocalDescription(const RTCPeerConnection::RTCSessionDescription* sdp) override;
+		void SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription* sdp) override;
 		void Close() override;
 
+		bool SetConfiguration(const RTCPeerConnection::RTCConfiguration& config);
 		RTCPeerConnection::RTCSessionDescription CurrentLocalDescription() override;
 		RTCPeerConnection::RTCSessionDescription CurrentRemoteDescription() override;
 		RTCPeerConnection::RTCSessionDescription LocalDescription() override;
 		RTCPeerConnection::RTCSessionDescription PendingLocalDescription() override;
 		RTCPeerConnection::RTCSessionDescription PendingRemoteDescription() override;
 		RTCPeerConnection::RTCSessionDescription RemoteDescription() override;
-
 		RTCPeerConnection::RTCIceConnectionState IceConnectionState() override;
 		RTCPeerConnection::RTCIceGatheringState IceGatheringState() override;
 		RTCPeerConnection::RTCSignalingState SignalingState() override;
@@ -110,12 +112,12 @@ namespace crtc {
 			return Error::New("Invalid SessionDescriptionInterface", __FILE__, __LINE__);
 		}
 
-		inline static std::shared_ptr<Error> SDP2SDP(const RTCPeerConnection::RTCSessionDescription& sdp, webrtc::SessionDescriptionInterface** desc = nullptr) {
+		inline static std::shared_ptr<Error> SDP2SDP(const RTCPeerConnection::RTCSessionDescription* sdp, webrtc::SessionDescriptionInterface** desc = nullptr) {
 			std::string type;
 			webrtc::SdpParseError error;
 
 			if (desc) {
-				switch (sdp.type) {
+				switch (sdp->type) {
 				case RTCPeerConnection::RTCSessionDescription::kAnswer:
 					type = webrtc::SessionDescriptionInterface::kAnswer;
 					break;
@@ -129,7 +131,7 @@ namespace crtc {
 					break;
 				}
 
-				*desc = webrtc::CreateSessionDescription(type, std::string(sdp.sdp), &error);
+				*desc = webrtc::CreateSessionDescription(type, std::string(sdp->sdp), &error);
 
 				if (*desc) {
 					return nullptr;
@@ -272,11 +274,35 @@ namespace crtc {
 		void OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates) override;
 		void OnIceConnectionReceivingChange(bool receiving) override;
 
+		void onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) override;
+		void onRemoveTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) override;
+		void onAddStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) override;
+		void onRemoveStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) override;
+		void onDataChannel(std::function<void(const std::shared_ptr<RTCDataChannel>)> callback) override;
+		void onIceCandidate(std::function<void(const std::shared_ptr<RTCIceCandidate>)> callback) override;
+		void onNegotiationNeeded(std::function<void()> callback) override;
+		void onsignalingstatechange(std::function<void()> callback) override;
+		void onIceGatheringStateChange(std::function<void()> callback) override;
+		void onIceConnectionStateChange(std::function<void()> callback) override;
+		void onIceCandidatesRemoved(std::function<void()> callback) override;
+
 	protected:
 		rtc::scoped_refptr<webrtc::PeerConnectionInterface> _socket;
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> _factory;
 		std::shared_ptr<Event> _event;
-		std::vector<Callback> _pending_candidates;
+		std::vector<std::function<void()>> _pending_candidates;
+
+		synchronized_callback<> _onnegotiationneeded;
+		synchronized_callback<> _onsignalingstatechange;
+		synchronized_callback<> _onicegatheringstatechange;
+		synchronized_callback<> _oniceconnectionstatechange;
+		synchronized_callback<> _onicecandidatesremoved;
+		synchronized_callback<const std::shared_ptr<MediaStream>> _onaddstream;
+		synchronized_callback<const std::shared_ptr<MediaStream>> _onremovestream;
+		synchronized_callback<const std::shared_ptr<MediaStreamTrack>> _onaddtrack;
+		synchronized_callback<const std::shared_ptr<MediaStreamTrack>> _onremovetrack;
+		synchronized_callback<const std::shared_ptr<RTCDataChannel>> _ondatachannel;
+		synchronized_callback<const std::shared_ptr<RTCIceCandidate>> _onicecandidate;
 	};
 }
 

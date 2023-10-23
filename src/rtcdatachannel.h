@@ -29,6 +29,7 @@
 
 #include "crtc.h"
 #include "event.h"
+#include "utils.hpp"
 #include <api/data_channel_interface.h>
 
 namespace crtc {
@@ -52,6 +53,12 @@ namespace crtc {
 		void Send(const std::shared_ptr<ArrayBuffer>& data, bool binary = true) override;
 		void Send(const unsigned char* data, size_t length, bool binary = true) override;
 
+		void onBufferedAmountLow(std::function<void()> callback) override;
+		void onOpen(std::function<void()> callback) override;
+		void onClose(std::function<void()> callback) override;
+		void onMessage(std::function<void(std::shared_ptr<ArrayBuffer>, bool)> callback) override;
+		void onError(std::function<void(std::shared_ptr<Error>)> callback) override;
+
 	protected:
 		void OnStateChange() override;
 		void OnMessage(const webrtc::DataBuffer& buffer) override;
@@ -60,6 +67,12 @@ namespace crtc {
 		uint64_t _threshold;
 		std::shared_ptr<Event> _event;
 		rtc::scoped_refptr<webrtc::DataChannelInterface> _channel;
+
+		synchronized_callback<> _onbufferedamountlow;
+		synchronized_callback<> _onclose;
+		synchronized_callback<std::shared_ptr<Error>> _onerror;
+		synchronized_callback<std::shared_ptr<ArrayBuffer>, bool> _onmessage;
+		synchronized_callback<> _onopen;
 	};
 
 	class WrapRtcBuffer : public ArrayBuffer {

@@ -146,7 +146,6 @@ if os.path.exists(dist_lib_dir):
 os.mkdir(dist_lib_dir)
 
 shutil.copy(os.path.join(root_dir, 'include', 'crtc.h'), dist_include_dir)
-shutil.copy(os.path.join(root_dir, 'include', 'utils.hpp'), dist_include_dir)
 
 if sys.platform.startswith('linux'):
   shutil.copy(os.path.join(os.path.join(out_dir, target_os, target_cpu), 'libcrtc.so'), dist_lib_dir)

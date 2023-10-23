@@ -29,6 +29,7 @@
 #include "crtc.h"
 #include "mediastream.h"
 #include "audiodevice.h"
+#include "utils.hpp"
 
 namespace crtc {
 	class AudioSourceInternal : public AudioSource, public MediaStreamInternal, public sigslot::has_slots<> {
@@ -40,7 +41,7 @@ namespace crtc {
 		bool IsRunning() const override;
 		void Stop() override;
 
-		void Write(const std::shared_ptr<AudioBuffer>& buffer, ErrorCallback callback = ErrorCallback()) override;
+		void Write(const std::shared_ptr<AudioBuffer>& buffer, std::function<void(std::shared_ptr<Error>)> callback) override;
 
 		String Id() const override;
 		void AddTrack(const std::shared_ptr<MediaStreamTrack>& track) override;
@@ -56,6 +57,7 @@ namespace crtc {
 
 		static volatile int counter;
 		rtc::scoped_refptr<AudioDevice> _audio;
+		synchronized_callback<> _ondrain;
 	};
 }
 

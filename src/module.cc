@@ -94,7 +94,7 @@ bool Module::DispatchEvents(bool kForever) {
 	return result;
 }
 
-void Module::RegisterAsyncCallback(const Callback& callback) {
+void Module::RegisterAsyncCallback(const std::function<void()>& callback) {
     asyncCallback = callback;
 }
 

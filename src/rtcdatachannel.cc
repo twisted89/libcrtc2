@@ -111,16 +111,16 @@ void RTCDataChannelInternal::Send(const std::shared_ptr<ArrayBuffer>& data, bool
 	if (!_channel->Send(dataBuffer)) {
 		switch (_channel->state()) {
 		case webrtc::DataChannelInterface::kConnecting:
-			onerror(Error::New("Unable to send arraybuffer. DataChannel is connecting", __FILE__, __LINE__));
+			_onerror(Error::New("Unable to send arraybuffer. DataChannel is connecting", __FILE__, __LINE__));
 			break;
 		case webrtc::DataChannelInterface::kOpen:
-			onerror(Error::New("Unable to send arraybuffer.", __FILE__, __LINE__));
+			_onerror(Error::New("Unable to send arraybuffer.", __FILE__, __LINE__));
 			break;
 		case webrtc::DataChannelInterface::kClosing:
-			onerror(Error::New("Unable to send arraybuffer. DataChannel is closing", __FILE__, __LINE__));
+			_onerror(Error::New("Unable to send arraybuffer. DataChannel is closing", __FILE__, __LINE__));
 			break;
 		case webrtc::DataChannelInterface::kClosed:
-			onerror(Error::New("Unable to send arraybuffer. DataChannel is closed", __FILE__, __LINE__));
+			_onerror(Error::New("Unable to send arraybuffer. DataChannel is closed", __FILE__, __LINE__));
 			break;
 		}
 	}
@@ -133,19 +133,44 @@ void RTCDataChannelInternal::Send(const unsigned char* data, size_t length, bool
 	if (!_channel->Send(dataBuffer)) {
 		switch (_channel->state()) {
 		case webrtc::DataChannelInterface::kConnecting:
-			onerror(Error::New("Unable to send arraybuffer. DataChannel is connecting", __FILE__, __LINE__));
+			_onerror(Error::New("Unable to send arraybuffer. DataChannel is connecting", __FILE__, __LINE__));
 			break;
 		case webrtc::DataChannelInterface::kOpen:
-			onerror(Error::New("Unable to send arraybuffer.", __FILE__, __LINE__));
+			_onerror(Error::New("Unable to send arraybuffer.", __FILE__, __LINE__));
 			break;
 		case webrtc::DataChannelInterface::kClosing:
-			onerror(Error::New("Unable to send arraybuffer. DataChannel is closing", __FILE__, __LINE__));
+			_onerror(Error::New("Unable to send arraybuffer. DataChannel is closing", __FILE__, __LINE__));
 			break;
 		case webrtc::DataChannelInterface::kClosed:
-			onerror(Error::New("Unable to send arraybuffer. DataChannel is closed", __FILE__, __LINE__));
+			_onerror(Error::New("Unable to send arraybuffer. DataChannel is closed", __FILE__, __LINE__));
 			break;
 		}
 	}
+}
+
+void crtc::RTCDataChannelInternal::onBufferedAmountLow(std::function<void()> callback)
+{
+	_onbufferedamountlow = callback;
+}
+
+void crtc::RTCDataChannelInternal::onOpen(std::function<void()> callback)
+{
+	_onopen = callback;
+}
+
+void crtc::RTCDataChannelInternal::onClose(std::function<void()> callback)
+{
+	_onclose = callback;
+}
+
+void crtc::RTCDataChannelInternal::onMessage(std::function<void(std::shared_ptr<ArrayBuffer>, bool)> callback)
+{
+	_onmessage = callback;
+}
+
+void crtc::RTCDataChannelInternal::onError(std::function<void(std::shared_ptr<Error>)> callback)
+{
+	_onerror = callback;
 }
 
 void RTCDataChannelInternal::OnStateChange() {
@@ -153,24 +178,24 @@ void RTCDataChannelInternal::OnStateChange() {
 	case webrtc::DataChannelInterface::kConnecting:
 		break;
 	case webrtc::DataChannelInterface::kOpen:
-		onopen();
+		_onopen();
 		break;
 	case webrtc::DataChannelInterface::kClosing:
 		break;
 	case webrtc::DataChannelInterface::kClosed:
-		onclose();
+		_onclose();
 		_event.reset();
 		break;
 	}
 }
 
 void RTCDataChannelInternal::OnMessage(const webrtc::DataBuffer& buffer) {
-	onmessage(WrapRtcBuffer::New(buffer.data.data(), buffer.size()), buffer.binary);
+	_onmessage(WrapRtcBuffer::New(buffer.data.data(), buffer.size()), buffer.binary);
 }
 
 void RTCDataChannelInternal::OnBufferedAmountChange(uint64_t previous_amount) {
 	if (_threshold && previous_amount > _threshold && _channel->buffered_amount() < _threshold) {
-		onbufferedamountlow();
+		_onbufferedamountlow();
 	}
 }
 

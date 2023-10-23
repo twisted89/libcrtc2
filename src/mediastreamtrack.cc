@@ -121,15 +121,15 @@ MediaStreamTrackInternal::~MediaStreamTrackInternal() {
 
 void MediaStreamTrackInternal::OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)
 {
-	onAudio(audio_data, bits_per_sample, sample_rate, number_of_channels, number_of_frames);
+	_onAudio(audio_data, bits_per_sample, sample_rate, number_of_channels, number_of_frames);
 }
 
 void MediaStreamTrackInternal::OnFrame(const webrtc::VideoFrame& frame) {
-	onVideo(std::make_shared<VideoFrameInternal>(frame));
+	_onVideo(std::make_shared<VideoFrameInternal>(frame));
 }
 
 void MediaStreamTrackInternal::OnDiscardedFrame() {
-	onFrameDrop();
+	_onFrameDrop();
 }
 
 void MediaStreamTrackInternal::OnConstraintsChanged(const webrtc::VideoTrackSourceConstraints& constraints) {
@@ -137,19 +137,19 @@ void MediaStreamTrackInternal::OnConstraintsChanged(const webrtc::VideoTrackSour
 }
 
 void MediaStreamTrackInternal::OnStarted() {
-	onstarted();
+	_onstarted();
 }
 
 void MediaStreamTrackInternal::OnUnMute() {
-	onunmute();
+	_onunmute();
 }
 
 void MediaStreamTrackInternal::OnMute() {
-	onmute();
+	_onmute();
 }
 
 void MediaStreamTrackInternal::OnEnded() {
-	onended();
+	_onended();
 }
 
 bool MediaStreamTrackInternal::Enabled() const {
@@ -182,6 +182,41 @@ MediaStreamTrack::State MediaStreamTrackInternal::ReadyState() const {
 
 std::shared_ptr<MediaStreamTrack> MediaStreamTrackInternal::Clone() {
 	return std::make_shared<MediaStreamTrackInternal>(_kind, _track.get(), _source.get());
+}
+
+void crtc::MediaStreamTrackInternal::onStarted(std::function<void()> callback)
+{
+	_onstarted = callback;
+}
+
+void crtc::MediaStreamTrackInternal::onEnded(std::function<void()> callback)
+{
+	_onended = callback;
+}
+
+void crtc::MediaStreamTrackInternal::onMute(std::function<void()> callback)
+{
+	_onmute = callback;
+}
+
+void crtc::MediaStreamTrackInternal::onUnmute(std::function<void()> callback)
+{
+	_onunmute = callback;
+}
+
+void crtc::MediaStreamTrackInternal::onAudio(std::function<void(const void*, int, int, size_t, size_t)> callback)
+{
+	_onAudio = callback;
+}
+
+void crtc::MediaStreamTrackInternal::onVideo(std::function<void(std::shared_ptr<VideoFrame>)> callback)
+{
+	_onVideo = callback;
+}
+
+void crtc::MediaStreamTrackInternal::onFrameDrop(std::function<void()> callback)
+{
+	_onFrameDrop = callback;
 }
 
 rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> MediaStreamTrackInternal::GetTrack() const {

@@ -30,7 +30,7 @@
 
 using namespace crtc;
 
-void Async::Call(Callback callback, int delayMs) {
+void Async::Call(std::function<void()> callback, int delayMs) {
 	auto event = Event::New();
 
 	rtc::Thread* target = rtc::ThreadManager::Instance()->CurrentThread();

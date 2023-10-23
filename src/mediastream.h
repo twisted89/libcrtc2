@@ -29,6 +29,7 @@
 
 #include "crtc.h"
 #include "mediastreamtrack.h"
+#include "utils.hpp"
 
 namespace crtc {
 	class MediaStreamInternal : public MediaStream, public webrtc::ObserverInterface {
@@ -59,16 +60,18 @@ namespace crtc {
 
 	protected:
 		virtual void OnAddTrack(const std::shared_ptr<MediaStreamTrack>& track) {
-			onaddtrack(track);
+			_onaddtrack(track);
 		}
 
 		virtual void OnRemoveTrack(const std::shared_ptr<MediaStreamTrack>& track) {
-			onremovetrack(track);
+			_onremovetrack(track);
 		}
 
 		rtc::scoped_refptr<webrtc::MediaStreamInterface> _stream;
 		webrtc::AudioTrackVector _audio_tracks;
 		webrtc::VideoTrackVector _video_tracks;
+		synchronized_callback<const std::shared_ptr<MediaStreamTrack>&> _onaddtrack;
+		synchronized_callback<const std::shared_ptr<MediaStreamTrack>&> _onremovetrack;
 	};
 }
 

@@ -9,18 +9,6 @@
 #include <utility>
 #include <any>
 
-#if defined(_MSC_VER)
-#ifdef CRTC_EXPORTS
-#define CRTC_EXPORT __declspec(dllexport) // Even though clang will complain about this on Windows it is required to export symbols correctly
-#else
-#define CRTC_EXPORT __declspec(dllimport)
-#endif
-#define CRTC_NO_EXPORT
-#else
-#define CRTC_EXPORT __attribute__((visibility("default")))
-#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
-#endif
-
 namespace crtc {
 
 	// overloaded helper
@@ -158,66 +146,6 @@ namespace crtc {
 	private:
 		impl_ptr<T> mImpl;
 	};
-
-	class CRTC_EXPORT String
-	{
-	public:
-		~String();
-
-		explicit String();
-
-		String(const char* text);
-
-		String(const char* text, size_t length);
-
-		String(const String &other);
-
-		String& operator=(String rhs);
-
-		String& operator=(const char* text);
-
-		String& swap(String& other);
-
-		operator char const* () const
-		{
-			return c_str();
-		}
-
-		char const* c_str() const
-		{
-			return get();
-		}
-
-		char const* data() const
-		{
-			return get();
-		}
-
-		size_t size() const;
-
-		friend String to_String(std::string const& text)
-		{
-			return String(text.c_str());
-		}
-
-		friend std::string to_string(String const& text)
-		{
-			return text.c_str();
-		}
-
-		friend char const* to_cstr(String const& text)
-		{
-			return text.c_str();
-		}
-
-	private:
-		const char* get() const;
-
-	private:
-		class Impl;
-		Impl const* impl;
-	};
-
 } // namespace crtc
 
 #endif

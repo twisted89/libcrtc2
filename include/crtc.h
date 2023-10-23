@@ -43,11 +43,83 @@ WebRTC uses Real-Time Protocol to transfer audio and video.
 #ifndef INCLUDE_CRTC_H_
 #define INCLUDE_CRTC_H_
 
+#if defined(_MSC_VER)
+#ifdef CRTC_EXPORTS
+#define CRTC_EXPORT __declspec(dllexport) // Even though clang will complain about this on Windows it is required to export symbols correctly
+#else
+#define CRTC_EXPORT __declspec(dllimport)
+#endif
+#define CRTC_NO_EXPORT
+#else
+#define CRTC_EXPORT __attribute__((visibility("default")))
+#define CRTC_NO_EXPORT __attribute__((visibility("hidden")))
+#endif
+
 #include <memory>
 #include <vector>
-#include "utils.hpp"
+#include <string>
+#include <functional>
 
 namespace crtc {
+
+	class CRTC_EXPORT String
+	{
+	public:
+		~String();
+
+		explicit String();
+
+		String(const char* text);
+
+		String(const char* text, size_t length);
+
+		String(const String& other);
+
+		String& operator=(String rhs);
+
+		String& operator=(const char* text);
+
+		String& swap(String& other);
+
+		operator char const* () const
+		{
+			return c_str();
+		}
+
+		char const* c_str() const
+		{
+			return get();
+		}
+
+		char const* data() const
+		{
+			return get();
+		}
+
+		size_t size() const;
+
+		friend String to_String(std::string const& text)
+		{
+			return String(text.c_str());
+		}
+
+		friend std::string to_string(String const& text)
+		{
+			return text.c_str();
+		}
+
+		friend char const* to_cstr(String const& text)
+		{
+			return text.c_str();
+		}
+
+	private:
+		const char* get() const;
+
+	private:
+		class Impl;
+		Impl const* impl;
+	};
 
 	class CRTC_EXPORT Atomic {
 		explicit Atomic() = delete;
@@ -71,15 +143,12 @@ namespace crtc {
 		static double Since(int64_t begin, int64_t end = Now()); // returns seconds
 	};
 
-
-	typedef std::function<void()> Callback;
-
 	class CRTC_EXPORT Async {
 		explicit Async() = delete;
 		Async(const Async&) = delete;
 		Async& operator=(const Async&) = delete;
 	public:
-		static void Call(Callback callback, int delayMs = 0);
+		static void Call(std::function<void()> callback, int delayMs = 0);
 	};
 
 	/// \sa https://developer.mozilla.org/en/docs/Web/API/Window/SetImmediate
@@ -121,97 +190,6 @@ namespace crtc {
 
 		virtual String ToString() const = 0;
 	};
-
-	typedef synchronized_callback<std::shared_ptr<Error>> ErrorCallback;
-
-	/// \sa https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise
-
-	template <typename... Args> class Promise {
-		Promise<Args...>(const Promise<Args...>&) = delete;
-		Promise<Args...>& operator=(const Promise<Args...>&) = delete;
-
-	public:
-		typedef std::function<void(Args...)> FullFilledCallback;
-		typedef Callback FinallyCallback;
-		typedef std::function<void(std::shared_ptr<Error>)> RejectedCallback;
-		typedef std::function<void(const FullFilledCallback&, const RejectedCallback&)> ExecutorCallback;
-
-		explicit Promise() { }
-		virtual ~Promise() { }
-
-		inline static std::shared_ptr<Promise<Args...>> New(const ExecutorCallback& executor) {
-			auto self = std::make_shared<Promise<Args...>>();
-
-			RejectedCallback reject([=](const std::shared_ptr<Error>& error) {
-				if (self) {
-					for (const auto& callback : self->_onreject) {
-						callback(error);
-					}
-
-					for (const auto& callback : self->_onfinally) {
-						callback();
-					}
-
-					self->_onfinally.clear();
-					self->_onreject.clear();
-					self->_onresolve.clear();
-				}
-				});
-
-			RejectedCallback asyncReject([=](const std::shared_ptr<Error>& error) {
-				Async::Call([=]() { reject(error); }); 
-				});
-
-			FullFilledCallback resolve([=](Args... args) {
-				Async::Call([=]() {
-					if (self) {
-						for (const auto& callback : self->_onresolve) {
-							callback(std::move(args)...);
-						}
-
-						for (const auto& callback : self->_onfinally) {
-							callback();
-						}
-
-						self->_onfinally.clear();
-						self->_onreject.clear();
-						self->_onresolve.clear();
-					}
-					});
-				});
-
-			if (executor) {
-				executor(resolve, asyncReject);
-			}
-			else {
-				asyncReject(Error::New("Invalid Executor Callback.", __FILE__, __LINE__));
-			}
-
-			return self;
-		}
-
-		inline Promise<Args...>* Then(const FullFilledCallback& callback) {
-			_onresolve.push_back(callback);
-			return this;
-		}
-
-		inline Promise<Args...>* Catch(const RejectedCallback& callback) {
-			_onreject.push_back(callback);
-			return this;
-		}
-
-		inline Promise<Args...>* Finally(const FinallyCallback& callback) {
-			_onfinally.push_back(callback);
-			return this;
-		}
-
-	private:
-		std::vector<FullFilledCallback> _onresolve;
-		std::vector<RejectedCallback> _onreject;
-		std::vector<FinallyCallback> _onfinally;
-	};
-
-	//template<> class Promise<void> : public Promise<> { };
 
 	/// \sa https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 
@@ -399,7 +377,7 @@ namespace crtc {
 		static void Init();
 		static bool DispatchEvents(bool kForever = false);
 		static void Dispose();
-		static void RegisterAsyncCallback(const Callback& callback);
+		static void RegisterAsyncCallback(const std::function<void()>& callback);
 		static void UnregisterAsyncCallback();
 	};
 
@@ -451,14 +429,13 @@ namespace crtc {
 
 		virtual std::shared_ptr<MediaStreamTrack> Clone() = 0;
 
-		Callback onstarted;
-		Callback onended;
-		Callback onmute;
-		Callback onunmute;
-
-		synchronized_callback<const void*, int, int, size_t, size_t> onAudio;
-		synchronized_callback<std::shared_ptr<VideoFrame>> onVideo;
-		synchronized_callback<> onFrameDrop;
+		virtual void onStarted(std::function<void()> callback) = 0;
+		virtual void onEnded(std::function<void()> callback) = 0;
+		virtual void onMute(std::function<void()> callback) = 0;
+		virtual void onUnmute(std::function<void()> callback) = 0;
+		virtual void onAudio(std::function<void(const void*, int, int, size_t, size_t)> callback) = 0;
+		virtual void onVideo(std::function<void(std::shared_ptr<VideoFrame>)> callback) = 0;
+		virtual void onFrameDrop(std::function<void()> callback) = 0;
 	};
 
 	typedef std::vector<std::shared_ptr<MediaStreamTrack>> MediaStreamTracks;
@@ -489,9 +466,6 @@ namespace crtc {
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/clone
 
 		virtual std::shared_ptr<MediaStream> Clone() = 0;
-
-		synchronized_callback<const std::shared_ptr<MediaStreamTrack>&> onaddtrack;
-		synchronized_callback<const std::shared_ptr<MediaStreamTrack>&> onremovetrack;
 
 	protected:
 		explicit MediaStream();
@@ -530,9 +504,7 @@ namespace crtc {
 		virtual bool IsRunning() const = 0;
 		virtual void Stop() = 0;
 
-		virtual void Write(const std::shared_ptr<AudioBuffer>& buffer, ErrorCallback callback = ErrorCallback()) = 0;
-
-		Callback ondrain;
+		virtual void Write(const std::shared_ptr<AudioBuffer>& buffer, std::function<void(std::shared_ptr<Error>)> callback) = 0;
 	};
 
 	class CRTC_EXPORT ImageBuffer : public ArrayBuffer {
@@ -578,9 +550,7 @@ namespace crtc {
 		virtual int Height() const = 0;
 		virtual float Fps() const = 0;
 
-		virtual void Write(const std::shared_ptr<ImageBuffer>& frame, ErrorCallback callback = ErrorCallback()) = 0;
-
-		Callback ondrain;
+		virtual void Write(const std::shared_ptr<ImageBuffer>& frame, std::function<void(std::shared_ptr<Error>)> callback) = 0;
 	};
 
 	/// \sa https://developer.mozilla.org/en/docs/Web/API/RTCDataChannel
@@ -590,8 +560,6 @@ namespace crtc {
 		RTCDataChannel& operator=(const RTCDataChannel&) = delete;
 
 	public:
-		typedef synchronized_callback<std::shared_ptr<ArrayBuffer>, bool> MessageCallback;
-
 		enum State {
 			kConnecting,
 			kOpen,
@@ -653,25 +621,11 @@ namespace crtc {
 
 		virtual void Send(const unsigned char* data, size_t length, bool binary = true) = 0;
 
-		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/onbufferedamountlow
-
-		Callback onbufferedamountlow;
-
-		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/onclose
-
-		Callback onclose;
-
-		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/onerror
-
-		ErrorCallback onerror;
-
-		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/onmessage
-
-		MessageCallback onmessage;
-
-		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/onopen
-
-		Callback onopen;
+		virtual void onBufferedAmountLow(std::function<void()> callback) = 0;
+		virtual void onOpen(std::function<void()> callback) = 0;
+		virtual void onClose(std::function<void()> callback) = 0;
+		virtual void onMessage(std::function<void(std::shared_ptr<ArrayBuffer>, bool)> callback) = 0;
+		virtual void onError(std::function<void(std::shared_ptr<Error>)> callback) = 0;
 	};
 
 	/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
@@ -817,11 +771,6 @@ namespace crtc {
 		struct CRTC_EXPORT RTCAnswerOptions : RTCOfferAnswerOptions {
 		};
 
-		typedef synchronized_callback<const std::shared_ptr<MediaStream>> StreamCallback;
-		typedef synchronized_callback<const std::shared_ptr<MediaStreamTrack>> TrackCallback;
-		typedef synchronized_callback<const std::shared_ptr<RTCDataChannel>> DataChannelCallback;
-		typedef synchronized_callback<const RTCIceCandidate&> IceCandidateCallback;
-
 		explicit RTCPeerConnection();
 		virtual ~RTCPeerConnection();
 
@@ -831,7 +780,7 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addIceCandidate
 
-		virtual std::shared_ptr<Promise<>> AddIceCandidate(const RTCIceCandidate& candidate) = 0;
+		virtual void AddIceCandidate(const RTCIceCandidate& candidate) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream
 
@@ -839,11 +788,11 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createAnswer
 
-		virtual std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> CreateAnswer(const RTCAnswerOptions& options = RTCAnswerOptions()) = 0;
+		virtual void CreateAnswer(std::function<void(RTCPeerConnection::RTCSessionDescription*)> callback, const RTCAnswerOptions& options = RTCAnswerOptions()) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createOffer
 
-		virtual std::shared_ptr<Promise<RTCPeerConnection::RTCSessionDescription>> CreateOffer(const RTCOfferOptions& options = RTCOfferOptions()) = 0;
+		virtual void CreateOffer(std::function<void(RTCPeerConnection::RTCSessionDescription*)> callback, const RTCOfferOptions& options = RTCOfferOptions()) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getLocalStreams
 
@@ -859,15 +808,15 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/setConfiguration
 
-		virtual void SetConfiguration(const RTCConfiguration& config) = 0;
+		//virtual bool SetConfiguration(const RTCConfiguration& config) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/setLocalDescription
 
-		virtual std::shared_ptr<Promise<>> SetLocalDescription(const RTCSessionDescription& sdp) = 0;
+		virtual void SetLocalDescription(const RTCSessionDescription* sdp) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/setRemoteDescription
 
-		virtual std::shared_ptr<Promise<>> SetRemoteDescription(const RTCSessionDescription& sdp) = 0;
+		virtual void SetRemoteDescription(const RTCSessionDescription* sdp) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/close
 
@@ -884,17 +833,17 @@ namespace crtc {
 		virtual RTCIceGatheringState IceGatheringState() = 0;
 		virtual RTCSignalingState SignalingState() = 0;
 
-		Callback onnegotiationneeded;
-		Callback onsignalingstatechange;
-		Callback onicegatheringstatechange;
-		Callback oniceconnectionstatechange;
-		Callback onicecandidatesremoved;
-		StreamCallback onaddstream;
-		StreamCallback onremovestream;
-		TrackCallback onaddtrack;
-		TrackCallback onremovetrack;
-		DataChannelCallback ondatachannel;
-		IceCandidateCallback onicecandidate;
+		virtual void onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) = 0;
+		virtual void onRemoveTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) = 0;
+		virtual void onAddStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) = 0;
+		virtual void onRemoveStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) = 0;
+		virtual void onDataChannel(std::function<void(const std::shared_ptr<RTCDataChannel>)> callback) = 0;
+		virtual void onIceCandidate(std::function<void(const std::shared_ptr<RTCIceCandidate>)> callback) = 0;
+		virtual void onNegotiationNeeded(std::function<void()> callback) = 0;
+		virtual void onsignalingstatechange(std::function<void()> callback) = 0;
+		virtual void onIceGatheringStateChange(std::function<void()> callback) = 0;
+		virtual void onIceConnectionStateChange(std::function<void()> callback) = 0;
+		virtual void onIceCandidatesRemoved(std::function<void()> callback) = 0;
 	};
 } // namespace crtc
 

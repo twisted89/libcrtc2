@@ -28,6 +28,7 @@
 #define CRTC_MEDIASTREAMTRACK_H
 
 #include "crtc.h"
+#include "utils.hpp"
 #include <api/media_stream_interface.h>
 
 namespace crtc {
@@ -50,6 +51,14 @@ namespace crtc {
 		MediaStreamTrack::State ReadyState() const override;
 		std::shared_ptr<MediaStreamTrack> Clone() override;
 
+		void onStarted(std::function<void()> callback) override;
+		void onEnded(std::function<void()> callback) override;
+		void onMute(std::function<void()> callback) override;
+		void onUnmute(std::function<void()> callback) override;
+		void onAudio(std::function<void(const void*, int, int, size_t, size_t)> callback) override;
+		void onVideo(std::function<void(std::shared_ptr<VideoFrame>)> callback) override;
+		void onFrameDrop(std::function<void()> callback) override;
+
 		rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> GetTrack() const;
 		rtc::scoped_refptr<webrtc::MediaSourceInterface> GetSource() const;
 
@@ -70,6 +79,15 @@ namespace crtc {
 		rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> _track;
 		rtc::scoped_refptr<webrtc::MediaSourceInterface> _source;
 		webrtc::MediaSourceInterface::SourceState _state;
+
+		synchronized_callback<> _onstarted;
+		synchronized_callback<> _onended;
+		synchronized_callback<> _onmute;
+		synchronized_callback<> _onunmute;
+
+		synchronized_callback<const void*, int, int, size_t, size_t> _onAudio;
+		synchronized_callback<std::shared_ptr<VideoFrame>> _onVideo;
+		synchronized_callback<> _onFrameDrop;
 	};
 }
 

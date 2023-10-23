@@ -59,7 +59,7 @@ namespace crtc {
 		int Width() const override;
 		int Height() const override;
 		float Fps() const override;
-		void Write(const Let<ImageBuffer>& frame, ErrorCallback callback = ErrorCallback()) override;
+		void Write(const Let<ImageBuffer>& frame, std::function<void(std::shared_ptr<Error>)> callback) override;
 
 	private:
 		void OnStateChange(cricket::VideoCapturer* capturer, cricket::CaptureState capture_state);
@@ -76,6 +76,7 @@ namespace crtc {
 
 		Let<Event> _event;
 		VideoCapturer* _capturer;
+		synchronized_callback<> _ondrain;
 	};
 }
 
