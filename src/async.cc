@@ -30,15 +30,3 @@
 
 using namespace crtc;
 
-void Async::Call(std::function<void()> callback, int delayMs) {
-	auto event = Event::New();
-
-	rtc::Thread* target = rtc::ThreadManager::Instance()->CurrentThread();
-
-	if (delayMs > 0) {
-		target->PostDelayedTask([callback, event]() { callback(); }, webrtc::TimeDelta::Millis(delayMs));
-	}
-	else {
-		target->PostTask([callback, event]() { callback(); });
-	}
-}

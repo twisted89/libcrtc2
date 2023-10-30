@@ -26,6 +26,7 @@
 #include "rtcpeerconnection.h"
 #include "rtcdatachannel.h"
 #include "mediastream.h"
+#include "customdecoderfactory.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/video_codecs/video_decoder_factory.h"
@@ -91,7 +92,7 @@ void RTCPeerConnectionInternal::Init() {
 		webrtc::CreateBuiltinAudioEncoderFactory(),
 		webrtc::CreateBuiltinAudioDecoderFactory(),
 		std::make_unique<webrtc::VideoEncoderFactoryTemplate<webrtc::OpenH264EncoderTemplateAdapter>>(),
-		std::make_unique<webrtc::VideoDecoderFactoryTemplate<webrtc::OpenH264DecoderTemplateAdapter>>(),
+		std::make_unique<CustomDecoderFactory>(),
 		nullptr, //rtc::scoped_refptr<AudioMixer> audio_mixer,
 		nullptr, //rtc::scoped_refptr<AudioProcessing> audio_processing,
 		nullptr, //std::unique_ptr<AudioFrameProcessor> owned_audio_frame_processor,
@@ -241,8 +242,8 @@ void RTCPeerConnectionInternal::CreateOffer(std::function<void(RTCPeerConnection
 		{
 			rtc::scoped_refptr<CreateOfferAnswerObserver> observer = rtc::make_ref_counted<CreateOfferAnswerObserver>(resolve, reject);
 			webrtc::PeerConnectionInterface::RTCOfferAnswerOptions offer_options(
-				true, // offer_to_receive_video
-				true, // offer_to_receive_audio
+				1, // offer_to_receive_video
+				1, // offer_to_receive_audio
 				options.voiceActivityDetection, // voice_activity_detection
 				options.iceRestart, // ice_restart 
 				true  // use_rtp_mux
@@ -339,13 +340,13 @@ bool RTCPeerConnectionInternal::SetConfiguration(const RTCPeerConnection::RTCCon
 	return false;
 }
 
-void RTCPeerConnectionInternal::SetLocalDescription(const RTCPeerConnection::RTCSessionDescription* sdp) {
+void RTCPeerConnectionInternal::SetLocalDescription(std::shared_ptr<const RTCSessionDescription> sdp) {
 	Promise<>::New([=](
 		const Promise<>::FullFilledCallback& resolve,
 		const Promise<>::RejectedCallback& reject)
 		{
 			webrtc::SessionDescriptionInterface* desc = nullptr;
-			auto error = SDP2SDP(sdp, &desc);
+			auto error = SDP2SDP(sdp.get(), &desc);
 
 			if (!error && _socket) {
 				rtc::scoped_refptr<SetSessionDescriptionObserver> observer = rtc::make_ref_counted<SetSessionDescriptionObserver>(resolve, reject);
@@ -357,13 +358,13 @@ void RTCPeerConnectionInternal::SetLocalDescription(const RTCPeerConnection::RTC
 		})->WaitForResult();
 }
 
-void RTCPeerConnectionInternal::SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription* sdp) {
+void RTCPeerConnectionInternal::SetRemoteDescription(std::shared_ptr<const RTCSessionDescription> sdp) {
 	Promise<>::New([=](
 		const Promise<>::FullFilledCallback& resolve,
 		const Promise<>::RejectedCallback& reject)
 		{
 			webrtc::SessionDescriptionInterface* desc = nullptr;
-			auto error = SDP2SDP(sdp, &desc);
+			auto error = SDP2SDP(sdp.get(), &desc);
 
 			if (!error && _socket) {
 				Promise<>::New([=](const Promise<>::FullFilledCallback& res, const Promise<>::RejectedCallback& rej) {
@@ -502,6 +503,14 @@ RTCPeerConnection::RTCSignalingState RTCPeerConnectionInternal::SignalingState()
 	return RTCPeerConnection::kStable;
 }
 
+std::vector<webrtc::SdpVideoFormat> crtc::RTCPeerConnectionInternal::SupportedFormats() {
+	return webrtc::SupportedH264DecoderCodecs();
+}
+
+std::unique_ptr<webrtc::VideoDecoder> crtc::RTCPeerConnectionInternal::CreateDecoder(const webrtc::SdpVideoFormat& format) {
+	return webrtc::H264Decoder::Create();
+}
+
 void RTCPeerConnectionInternal::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
 	_onsignalingstatechange();
 
@@ -573,6 +582,11 @@ void RTCPeerConnectionInternal::OnIceCandidatesRemoved(const std::vector<cricket
 
 void RTCPeerConnectionInternal::OnIceConnectionReceivingChange(bool receiving) {
 	//oniceconnectionstatechange();
+}
+
+void crtc::RTCPeerConnectionInternal::onRawVideo(std::function<void((const unsigned char* data, size_t length, bool isKeyFrame, int64_t renderTimeMs))> callback)
+{
+	_onRawVideo = callback;
 }
 
 void crtc::RTCPeerConnectionInternal::onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback)

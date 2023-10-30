@@ -101,3 +101,16 @@ void Module::RegisterAsyncCallback(const std::function<void()>& callback) {
 void Module::UnregisterAsyncCallback() {
     asyncCallback = nullptr;
 }
+
+void Async::Call(std::function<void()> callback, int delayMs) {
+    auto event = Event::New();
+
+    //rtc::Thread* target = rtc::ThreadManager::Instance()->CurrentThread();
+
+    if (delayMs > 0) {
+        currentThread.PostDelayedTask([callback, event]() { callback(); }, webrtc::TimeDelta::Millis(delayMs));
+    }
+    else {
+        currentThread.PostTask([callback, event]() { callback(); });
+    }
+}

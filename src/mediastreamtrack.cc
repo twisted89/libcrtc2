@@ -107,6 +107,7 @@ MediaStreamTrackInternal::MediaStreamTrackInternal(MediaStreamTrack::Type kind, 
 		webrtc::VideoTrackInterface* video = static_cast<webrtc::VideoTrackInterface*>(track);
 		rtc::VideoSinkWants wants;
 		video->AddOrUpdateSink(this, wants);
+		video->set_enabled(true);
 	}
 }
 
@@ -116,6 +117,17 @@ MediaStreamTrackInternal::MediaStreamTrackInternal(const std::shared_ptr<MediaSt
 
 MediaStreamTrackInternal::~MediaStreamTrackInternal() {
 	_source->UnregisterObserver(this);
+
+	if (_kind == MediaStreamTrack::Type::kAudio) {
+		webrtc::AudioTrackInterface* audio = static_cast<webrtc::AudioTrackInterface*>(_track.get());
+		audio->RemoveSink(this);
+	}
+	else if (_kind == MediaStreamTrack::Type::kVideo) {
+		webrtc::VideoTrackInterface* video = static_cast<webrtc::VideoTrackInterface*>(_track.get());
+		rtc::VideoSinkWants wants;
+		video->RemoveSink(this);
+	}
+
 }
 
 

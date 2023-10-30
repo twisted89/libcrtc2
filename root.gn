@@ -382,6 +382,7 @@ config("common_config") {
       "crtc/src/event.cc",
       "crtc/src/error.cc",
       "crtc/src/arraybuffer.cc",
+      "crtc/src/customdecoderfactory.cc",
       "crtc/src/module.cc",
       "crtc/src/rtcpeerconnection.cc",
       "crtc/src/rtcdatachannel.cc",
@@ -434,6 +435,8 @@ config("common_config") {
         "//p2p",
         "//pc",
         "//stats",
+        "//third_party/ffmpeg",
+        "//third_party/openh264:encoder",
     ]
     
     if (is_win) {

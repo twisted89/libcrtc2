@@ -40,37 +40,32 @@ namespace crtc {
 					self->_onreject.clear();
 					self->_onresolve.clear();
 				}
-				});
-
-			RejectedCallback asyncReject([=](const std::shared_ptr<Error>& error) {
-				Async::Call([=]() { reject(error); });
-				});
+			});
 
 			FullFilledCallback resolve([=](Args... args) {
-				Async::Call([=]() {
-					if (self) {
-						for (const auto& callback : self->_onresolve) {
-							callback(std::move(args)...);
-						}
-
-						for (const auto& callback : self->_onfinally) {
-							callback();
-						}
-
-						self->_completed = true;
-
-						self->_onfinally.clear();
-						self->_onreject.clear();
-						self->_onresolve.clear();
+				if (self) {
+					for (const auto& callback : self->_onresolve) {
+						callback(std::move(args)...);
 					}
-					});
-				});
+
+					for (const auto& callback : self->_onfinally) {
+						callback();
+					}
+
+					self->_completed = true;
+
+					self->_onfinally.clear();
+					self->_onreject.clear();
+					self->_onresolve.clear();
+				}
+			});
+
 
 			if (executor) {
-				executor(resolve, asyncReject);
+				Async::Call([=]() { executor(resolve, reject); });
 			}
 			else {
-				asyncReject(Error::New("Invalid Executor Callback.", __FILE__, __LINE__));
+				Async::Call([=]() { reject(Error::New("Invalid Executor Callback.", __FILE__, __LINE__)); });
 			}
 
 			return self;

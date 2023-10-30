@@ -35,10 +35,9 @@
 #include <api/peer_connection_interface.h>
 #include <api/create_peerconnection_factory.h>
 #include <api/task_queue/default_task_queue_factory.h>
-//#include <media/engine/webrtcvideodecoderfactory.h>
-//#include <media/engine/webrtcvideoencoderfactory.h>
 #include <media/engine/webrtc_video_engine.h>
 #include <modules/audio_device/include/audio_device.h>
+#include <modules/video_coding/codecs/h264/include/h264.h>
 
 namespace crtc {
 	class RTCPeerConnectionInternal;
@@ -71,8 +70,8 @@ namespace crtc {
 		MediaStreams GetRemoteStreams() override;
 		void RemoveStream(const std::shared_ptr<MediaStream>& stream) override;
 		// void RemoveTrack(const Let<RTCPeerConnection::RTCRtpSender> &sender) override;
-		void SetLocalDescription(const RTCPeerConnection::RTCSessionDescription* sdp) override;
-		void SetRemoteDescription(const RTCPeerConnection::RTCSessionDescription* sdp) override;
+		void SetLocalDescription(std::shared_ptr<const RTCSessionDescription> sdp) override;
+		void SetRemoteDescription(std::shared_ptr<const RTCSessionDescription> sdp) override;
 		void Close() override;
 
 		bool SetConfiguration(const RTCPeerConnection::RTCConfiguration& config);
@@ -85,6 +84,9 @@ namespace crtc {
 		RTCPeerConnection::RTCIceConnectionState IceConnectionState() override;
 		RTCPeerConnection::RTCIceGatheringState IceGatheringState() override;
 		RTCPeerConnection::RTCSignalingState SignalingState() override;
+
+		static std::vector<webrtc::SdpVideoFormat> SupportedFormats();
+		static std::unique_ptr<webrtc::VideoDecoder> CreateDecoder(const webrtc::SdpVideoFormat& format);
 
 	private:
 		inline static std::shared_ptr<Error> SDP2SDP(const webrtc::SessionDescriptionInterface* desc = nullptr, RTCPeerConnection::RTCSessionDescription* sdp = nullptr) {
@@ -274,6 +276,7 @@ namespace crtc {
 		void OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates) override;
 		void OnIceConnectionReceivingChange(bool receiving) override;
 
+		void onRawVideo(std::function<void(const unsigned char* data, size_t length, bool isKeyFrame, int64_t renderTimeMs)> callback) override;
 		void onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) override;
 		void onRemoveTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) override;
 		void onAddStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) override;
@@ -299,6 +302,7 @@ namespace crtc {
 		synchronized_callback<> _onicecandidatesremoved;
 		synchronized_callback<const std::shared_ptr<MediaStream>> _onaddstream;
 		synchronized_callback<const std::shared_ptr<MediaStream>> _onremovestream;
+		synchronized_callback<const unsigned char*, size_t, bool, int64_t> _onRawVideo;
 		synchronized_callback<const std::shared_ptr<MediaStreamTrack>> _onaddtrack;
 		synchronized_callback<const std::shared_ptr<MediaStreamTrack>> _onremovetrack;
 		synchronized_callback<const std::shared_ptr<RTCDataChannel>> _ondatachannel;

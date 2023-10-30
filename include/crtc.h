@@ -812,11 +812,11 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/setLocalDescription
 
-		virtual void SetLocalDescription(const RTCSessionDescription* sdp) = 0;
+		virtual void SetLocalDescription(std::shared_ptr<const RTCSessionDescription> sdp) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/setRemoteDescription
 
-		virtual void SetRemoteDescription(const RTCSessionDescription* sdp) = 0;
+		virtual void SetRemoteDescription(std::shared_ptr<const RTCSessionDescription> sdp) = 0;
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/close
 
@@ -833,6 +833,7 @@ namespace crtc {
 		virtual RTCIceGatheringState IceGatheringState() = 0;
 		virtual RTCSignalingState SignalingState() = 0;
 
+		virtual void onRawVideo(std::function<void(const unsigned char* data, size_t length, bool isKeyFrame, int64_t renderTimeMs)> callback) = 0;
 		virtual void onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) = 0;
 		virtual void onRemoveTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) = 0;
 		virtual void onAddStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) = 0;

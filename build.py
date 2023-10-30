@@ -104,7 +104,7 @@ if not os.path.exists(webrtc_sync):
   open(webrtc_sync, 'a').close()
   
 os.chdir(webrtc_src_dir)
-gn_flags = '--args=rtc_include_tests=false is_component_build=false rtc_use_h264=true rtc_enable_protobuf=false treat_warnings_as_errors=false use_custom_libcxx=false'
+gn_flags = '--args=rtc_include_tests=false is_component_build=false rtc_use_h264=true ffmpeg_branding="Chrome" rtc_enable_protobuf=false treat_warnings_as_errors=false use_custom_libcxx=false'
 
 if os.environ.get('WEBRTC_DEBUG') == 'true':
   gn_flags += ' is_debug=true'
