@@ -44,6 +44,23 @@ namespace crtc {
 			return nullptr;
 		}
 
+		template <typename V, typename... Vs>
+		std::vector<webrtc::SdpVideoFormat> GetSupportedFormatsInternal() const {
+			auto supported_formats = V::SupportedFormats();
+
+			if constexpr (sizeof...(Vs) > 0) {
+				// Supported formats may overlap between implementations, so duplicates
+				// should be filtered out.
+				for (const auto& other_format : GetSupportedFormatsInternal<Vs...>()) {
+					if (!IsFormatInList(other_format, supported_formats)) {
+						supported_formats.push_back(other_format);
+					}
+				}
+			}
+
+			return supported_formats;
+		}
+
 		RTCPeerConnectionInternal* _pc;
 	};
 

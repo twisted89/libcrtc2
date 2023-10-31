@@ -91,9 +91,6 @@ namespace crtc {
 		void onIceConnectionStateChange(std::function<void()> callback) override;
 		void onIceCandidatesRemoved(std::function<void()> callback) override;
 
-		static std::vector<webrtc::SdpVideoFormat> SupportedFormats();
-		static std::unique_ptr<webrtc::VideoDecoder> CreateDecoder(const webrtc::SdpVideoFormat& format);
-
 	private:
 		inline static std::shared_ptr<Error> SDP2SDP(const webrtc::SessionDescriptionInterface* desc = nullptr, RTCPeerConnection::RTCSessionDescription* sdp = nullptr) {
 			if (desc && sdp) {

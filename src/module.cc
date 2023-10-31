@@ -81,10 +81,10 @@ void Module::Dispose() {
 
 bool Module::DispatchEvents(bool kForever) {
 	bool result = false;
-	rtc::Thread* thread = rtc::ThreadManager::Instance()->CurrentThread();
+	//rtc::Thread* thread = rtc::ThreadManager::Instance()->CurrentThread();
 
 	do {
-		result = (base::subtle::NoBarrier_Load(&ModuleInternal::pending_events) > 0 && thread->ProcessMessages(kForever ? 1000 : 0));
+		result = (base::subtle::NoBarrier_Load(&ModuleInternal::pending_events) > 0 && currentThread.ProcessMessages(kForever ? 1000 : 0));
 	} while (kForever && result);
 
 	return result;

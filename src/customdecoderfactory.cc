@@ -21,17 +21,17 @@ namespace crtc {
 
 	std::vector<webrtc::SdpVideoFormat> CustomDecoderFactory::GetSupportedFormats() const
 	{
-		return std::vector<webrtc::SdpVideoFormat>();
+		return GetSupportedFormatsInternal<
+			webrtc::LibvpxVp8DecoderTemplateAdapter,
+			webrtc::LibvpxVp9DecoderTemplateAdapter,
+			webrtc::OpenH264DecoderTemplateAdapter,
+			webrtc::Dav1dDecoderTemplateAdapter>();
 	}
 
 	std::unique_ptr<webrtc::VideoDecoder> CustomDecoderFactory::CreateVideoDecoder(const webrtc::SdpVideoFormat& format)
 	{
 		if (_pc->BypassDecoder())
-		{
-			if (IsFormatInList(format, webrtc::OpenH264DecoderTemplateAdapter::SupportedFormats())) {
-				return std::make_unique<CustomDecoder>(_pc);
-			}
-		}
+			return std::make_unique<CustomDecoder>(_pc);
 		
 		return CreateVideoDecoderInternal<
 			webrtc::LibvpxVp8DecoderTemplateAdapter,

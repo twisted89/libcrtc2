@@ -81,7 +81,7 @@ RTCPeerConnectionInternal::RTCPeerConnectionInternal() {
 
 	_factory = webrtc::CreatePeerConnectionFactory(
 		_network_thread.get(),
-		_worker_thread.get(), //rtc::ThreadManager::Instance()->CurrentThread(),
+		_worker_thread.get(),
 		_signal_thread.get(),
 		std::move(_audio_device),
 		webrtc::CreateBuiltinAudioEncoderFactory(),
@@ -490,14 +490,6 @@ RTCPeerConnection::RTCSignalingState RTCPeerConnectionInternal::SignalingState()
 	}
 
 	return RTCPeerConnection::kStable;
-}
-
-std::vector<webrtc::SdpVideoFormat> crtc::RTCPeerConnectionInternal::SupportedFormats() {
-	return webrtc::SupportedH264DecoderCodecs();
-}
-
-std::unique_ptr<webrtc::VideoDecoder> crtc::RTCPeerConnectionInternal::CreateDecoder(const webrtc::SdpVideoFormat& format) {
-	return webrtc::H264Decoder::Create();
 }
 
 void RTCPeerConnectionInternal::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
