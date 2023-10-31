@@ -49,16 +49,6 @@ namespace crtc {
 		explicit RTCPeerConnectionInternal();
 		virtual ~RTCPeerConnectionInternal() override;
 
-		static void Init();
-		static void Dispose();
-
-		static std::unique_ptr<rtc::Thread> network_thread;
-		static std::unique_ptr<rtc::Thread> worker_thread;
-		static std::unique_ptr<rtc::Thread> signal_thread;
-		static std::unique_ptr<webrtc::TaskQueueFactory> task_queue;
-		static rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device;
-		static rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
-
 		std::shared_ptr<RTCDataChannel> CreateDataChannel(const String& label, const RTCDataChannelInit& options = RTCDataChannelInit()) override;
 		void AddIceCandidate(const RTCPeerConnection::RTCIceCandidate& candidate) override;
 		void AddStream(const std::shared_ptr<MediaStream>& stream) override;
@@ -84,6 +74,22 @@ namespace crtc {
 		RTCPeerConnection::RTCIceConnectionState IceConnectionState() override;
 		RTCPeerConnection::RTCIceGatheringState IceGatheringState() override;
 		RTCPeerConnection::RTCSignalingState SignalingState() override;
+
+		bool BypassDecoder() override;
+		void onRawVideo(const webrtc::EncodedImage& input_image, int64_t render_time_ms);
+
+		void onRawVideo(std::function<void(const unsigned char* data, size_t length, bool isKeyFrame, int64_t renderTimeMs)> callback) override;
+		void onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) override;
+		void onRemoveTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) override;
+		void onAddStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) override;
+		void onRemoveStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) override;
+		void onDataChannel(std::function<void(const std::shared_ptr<RTCDataChannel>)> callback) override;
+		void onIceCandidate(std::function<void(const std::shared_ptr<RTCIceCandidate>)> callback) override;
+		void onNegotiationNeeded(std::function<void()> callback) override;
+		void onsignalingstatechange(std::function<void()> callback) override;
+		void onIceGatheringStateChange(std::function<void()> callback) override;
+		void onIceConnectionStateChange(std::function<void()> callback) override;
+		void onIceCandidatesRemoved(std::function<void()> callback) override;
 
 		static std::vector<webrtc::SdpVideoFormat> SupportedFormats();
 		static std::unique_ptr<webrtc::VideoDecoder> CreateDecoder(const webrtc::SdpVideoFormat& format);
@@ -263,6 +269,14 @@ namespace crtc {
 			Promise<>::RejectedCallback _reject;
 		};
 
+		std::unique_ptr<rtc::Thread> _network_thread;
+		std::unique_ptr<rtc::Thread> _worker_thread;
+		std::unique_ptr<rtc::Thread> _signal_thread;
+		std::unique_ptr<webrtc::TaskQueueFactory> _task_queue;
+		rtc::scoped_refptr<webrtc::AudioDeviceModule> _audio_device;
+		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> _factory;
+
+	protected:
 		void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
 		void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override;
 		void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override;
@@ -276,22 +290,7 @@ namespace crtc {
 		void OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates) override;
 		void OnIceConnectionReceivingChange(bool receiving) override;
 
-		void onRawVideo(std::function<void(const unsigned char* data, size_t length, bool isKeyFrame, int64_t renderTimeMs)> callback) override;
-		void onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) override;
-		void onRemoveTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) override;
-		void onAddStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) override;
-		void onRemoveStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) override;
-		void onDataChannel(std::function<void(const std::shared_ptr<RTCDataChannel>)> callback) override;
-		void onIceCandidate(std::function<void(const std::shared_ptr<RTCIceCandidate>)> callback) override;
-		void onNegotiationNeeded(std::function<void()> callback) override;
-		void onsignalingstatechange(std::function<void()> callback) override;
-		void onIceGatheringStateChange(std::function<void()> callback) override;
-		void onIceConnectionStateChange(std::function<void()> callback) override;
-		void onIceCandidatesRemoved(std::function<void()> callback) override;
-
-	protected:
 		rtc::scoped_refptr<webrtc::PeerConnectionInterface> _socket;
-		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> _factory;
 		std::shared_ptr<Event> _event;
 		std::vector<std::function<void()>> _pending_candidates;
 
@@ -307,7 +306,9 @@ namespace crtc {
 		synchronized_callback<const std::shared_ptr<MediaStreamTrack>> _onremovetrack;
 		synchronized_callback<const std::shared_ptr<RTCDataChannel>> _ondatachannel;
 		synchronized_callback<const std::shared_ptr<RTCIceCandidate>> _onicecandidate;
-	};
+
+
+};
 }
 
 #endif

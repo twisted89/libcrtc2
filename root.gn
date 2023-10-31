@@ -378,10 +378,10 @@ config("common_config") {
     
     sources = [
       "crtc/src/atomic.cc",
-      "crtc/src/async.cc",
       "crtc/src/event.cc",
       "crtc/src/error.cc",
       "crtc/src/arraybuffer.cc",
+      "crtc/src/customdecoder.cc",
       "crtc/src/customdecoderfactory.cc",
       "crtc/src/module.cc",
       "crtc/src/rtcpeerconnection.cc",

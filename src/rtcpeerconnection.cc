@@ -38,41 +38,36 @@
 
 using namespace crtc;
 
-std::unique_ptr<rtc::Thread> RTCPeerConnectionInternal::network_thread;
-std::unique_ptr<rtc::Thread> RTCPeerConnectionInternal::worker_thread;
-std::unique_ptr<rtc::Thread> RTCPeerConnectionInternal::signal_thread;
-std::unique_ptr<webrtc::TaskQueueFactory> RTCPeerConnectionInternal::task_queue;
-rtc::scoped_refptr<webrtc::AudioDeviceModule> RTCPeerConnectionInternal::audio_device;
-rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> RTCPeerConnectionInternal::factory;
+RTCPeerConnectionInternal::RTCPeerConnectionInternal() {
+	webrtc::PeerConnectionInterface::RTCConfiguration cfg(webrtc::PeerConnectionInterface::RTCConfigurationType::kAggressive);
 
-void RTCPeerConnectionInternal::Init() {
-	task_queue = webrtc::CreateDefaultTaskQueueFactory();
+	_task_queue = webrtc::CreateDefaultTaskQueueFactory();
 
-	network_thread = rtc::Thread::CreateWithSocketServer();
-	network_thread->SetName("network", nullptr);
+	_network_thread = rtc::Thread::CreateWithSocketServer();
+	_network_thread->SetName("network", nullptr);
 
-	if (!network_thread->Start()) {
+	if (!_network_thread->Start()) {
 		//TODO
 	}
 
-	signal_thread = rtc::Thread::Create();
-	signal_thread->SetName("signal", nullptr);
+	_signal_thread = rtc::Thread::Create();
+	_signal_thread->SetName("signal", nullptr);
 
-	if (!signal_thread->Start()) {
+	if (!_signal_thread->Start()) {
 		//TODO
 	}
 
-	worker_thread = rtc::Thread::Create();
-	worker_thread->SetName("worker", nullptr);
+	_worker_thread = rtc::Thread::Create();
+	_worker_thread->SetName("worker", nullptr);
 
-	if (!worker_thread->Start()) {
+	if (!_worker_thread->Start()) {
 		//TODO
 	}
 
-	audio_device = nullptr; // webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kDummyAudio, task_queue.get());
+	_audio_device = nullptr; // webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kDummyAudio, task_queue.get());
 
-	if (audio_device && !audio_device->Initialized()) {
-		audio_device->Init();
+	if (_audio_device && !_audio_device->Initialized()) {
+		_audio_device->Init();
 	}
 
 	/*factory = webrtc::CreatePeerConnectionFactory(
@@ -84,49 +79,43 @@ void RTCPeerConnectionInternal::Init() {
 	  nullptr); // cricket::WebRtcVideoDecoderFactory*
 	  */
 
-	factory = webrtc::CreatePeerConnectionFactory(
-		network_thread.get(),
-		worker_thread.get(), //rtc::ThreadManager::Instance()->CurrentThread(),
-		signal_thread.get(),
-		std::move(audio_device),
+	_factory = webrtc::CreatePeerConnectionFactory(
+		_network_thread.get(),
+		_worker_thread.get(), //rtc::ThreadManager::Instance()->CurrentThread(),
+		_signal_thread.get(),
+		std::move(_audio_device),
 		webrtc::CreateBuiltinAudioEncoderFactory(),
 		webrtc::CreateBuiltinAudioDecoderFactory(),
 		std::make_unique<webrtc::VideoEncoderFactoryTemplate<webrtc::OpenH264EncoderTemplateAdapter>>(),
-		std::make_unique<CustomDecoderFactory>(),
+		std::make_unique<CustomDecoderFactory>(this),
 		nullptr, //rtc::scoped_refptr<AudioMixer> audio_mixer,
 		nullptr, //rtc::scoped_refptr<AudioProcessing> audio_processing,
 		nullptr, //std::unique_ptr<AudioFrameProcessor> owned_audio_frame_processor,
 		nullptr); //std::unique_ptr<FieldTrialsView> field_trials = nullptr)
 }
 
-void RTCPeerConnectionInternal::Dispose() {
-	if (network_thread)
-	{
-		network_thread->Stop();
-		network_thread.release();
-	}
-	if (worker_thread)
-	{
-		worker_thread->Stop();
-		worker_thread.release();
-	}
-	if (signal_thread)
-	{
-		signal_thread->Stop();
-		signal_thread.release();
-	}
-	factory.release();
-	audio_device.release();
-}
-
-RTCPeerConnectionInternal::RTCPeerConnectionInternal() : _factory(factory) {
-	webrtc::PeerConnectionInterface::RTCConfiguration cfg(webrtc::PeerConnectionInterface::RTCConfigurationType::kAggressive);
-}
-
 RTCPeerConnectionInternal::~RTCPeerConnectionInternal() {
 	if (_socket && _socket->signaling_state() != webrtc::PeerConnectionInterface::kClosed) {
 		_socket->Close();
 	}
+
+	if (_network_thread)
+	{
+		_network_thread->Stop();
+		_network_thread.release();
+	}
+	if (_worker_thread)
+	{
+		_worker_thread->Stop();
+		_worker_thread.release();
+	}
+	if (_signal_thread)
+	{
+		_signal_thread->Stop();
+		_signal_thread.release();
+	}
+	_factory.release();
+	_audio_device.release();
 }
 
 std::shared_ptr<RTCDataChannel> RTCPeerConnectionInternal::CreateDataChannel(const String& label, const RTCDataChannelInit& options) {
@@ -582,6 +571,17 @@ void RTCPeerConnectionInternal::OnIceCandidatesRemoved(const std::vector<cricket
 
 void RTCPeerConnectionInternal::OnIceConnectionReceivingChange(bool receiving) {
 	//oniceconnectionstatechange();
+}
+
+bool crtc::RTCPeerConnectionInternal::BypassDecoder()
+{
+	return _onRawVideo;
+}
+
+void crtc::RTCPeerConnectionInternal::onRawVideo(const webrtc::EncodedImage& input_image, int64_t render_time_ms)
+{
+	if (_onRawVideo)
+		_onRawVideo(input_image.data(), input_image.size(), input_image.FrameType() == webrtc::VideoFrameType::kVideoFrameKey, render_time_ms);
 }
 
 void crtc::RTCPeerConnectionInternal::onRawVideo(std::function<void((const unsigned char* data, size_t length, bool isKeyFrame, int64_t renderTimeMs))> callback)

@@ -71,15 +71,11 @@ Thread currentThread;
 
 void Module::Init() {
     rtc::ThreadManager::Instance()->SetCurrentThread(&currentThread);
-	//rtc::ThreadManager::Instance()->WrapCurrentThread();
-	//webrtc::Trace::CreateTrace();
 	rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
 	rtc::InitializeSSL();
-	RTCPeerConnectionInternal::Init();
 }
 
 void Module::Dispose() {
-	RTCPeerConnectionInternal::Dispose();
 	rtc::CleanupSSL();
 }
 

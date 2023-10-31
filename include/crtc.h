@@ -833,6 +833,8 @@ namespace crtc {
 		virtual RTCIceGatheringState IceGatheringState() = 0;
 		virtual RTCSignalingState SignalingState() = 0;
 
+		virtual bool BypassDecoder() = 0;
+
 		virtual void onRawVideo(std::function<void(const unsigned char* data, size_t length, bool isKeyFrame, int64_t renderTimeMs)> callback) = 0;
 		virtual void onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) = 0;
 		virtual void onRemoveTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) = 0;
