@@ -427,8 +427,6 @@ namespace crtc {
 
 		/// \sa https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack/clone
 
-		virtual std::shared_ptr<MediaStreamTrack> Clone() = 0;
-
 		virtual void onStarted(std::function<void()> callback) = 0;
 		virtual void onEnded(std::function<void()> callback) = 0;
 		virtual void onMute(std::function<void()> callback) = 0;
@@ -833,9 +831,11 @@ namespace crtc {
 		virtual RTCIceGatheringState IceGatheringState() = 0;
 		virtual RTCSignalingState SignalingState() = 0;
 
-		virtual bool BypassDecoder() = 0;
+		virtual bool BypassVideoDecoder() = 0;
+		virtual bool BypassAudioDecoder() = 0;
 
 		virtual void onRawVideo(std::function<void(const unsigned char* data, size_t length, bool isKeyFrame, int64_t renderTimeMs)> callback) = 0;
+		virtual void onRawAudio(std::function<void(const unsigned char* data, size_t length)> callback) = 0;
 		virtual void onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) = 0;
 		virtual void onRemoveTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback) = 0;
 		virtual void onAddStream(std::function<void(const std::shared_ptr<MediaStream>)> callback) = 0;

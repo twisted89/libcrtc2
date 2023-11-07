@@ -26,8 +26,10 @@ add_library(crtc SHARED
 	src/atomic.cc
 	src/audiobuffer.cc src/audiobuffer.h
 	src/audiosource.cc src/audiosource.h
-	src/customdecoder.cc src/customdecoder.h
-	src/customdecoderfactory.cc src/customdecoderfactory.h
+	src/customvideodecoder.cc src/customvideodecoder.h
+	src/customaudiodecoder.cc src/customaudiodecoder.h
+	src/customaudiofactory.cc src/customaudiofactory.h
+	src/customvideofactory.cc src/customvideofactory.h
 	src/error.cc src/error.h
 	src/event.cc src/event.h
 	src/imagebuffer.cc src/imagebuffer.h
@@ -40,8 +42,7 @@ add_library(crtc SHARED
 	src/string.cc
 	src/time.cc
 	src/videoframe.cc src/videoframe.h
-	src/promise.h
- "src/customdecoder.h")
+	src/promise.h)
   
 target_link_libraries(crtc
         PRIVATE

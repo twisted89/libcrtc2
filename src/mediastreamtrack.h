@@ -36,20 +36,16 @@ namespace crtc {
 		webrtc::AudioTrackSinkInterface, rtc::VideoSinkInterface<webrtc::VideoFrame> {
 
 	public:
-		//static webrtc::MediaStreamTrackInterface* New(const std::shared_ptr<MediaStreamTrack>& track);
-		static std::shared_ptr<MediaStreamTrack> New(webrtc::MediaStreamTrackInterface* track = nullptr);
-
-		MediaStreamTrackInternal(MediaStreamTrack::Type kind, webrtc::MediaStreamTrackInterface* track = nullptr, webrtc::MediaSourceInterface* source = nullptr);
-		MediaStreamTrackInternal(const std::shared_ptr<MediaStreamTrackInternal>& track);
+		MediaStreamTrackInternal(webrtc::MediaStreamTrackInterface* track);
 		virtual ~MediaStreamTrackInternal() override;
 
 		bool Enabled() const override;
 		bool Remote() const override;
 		bool Muted() const override;
 		String Id() const override;
+		std::string IdString() const;
 		MediaStreamTrack::Type Kind() const override;
 		MediaStreamTrack::State ReadyState() const override;
-		std::shared_ptr<MediaStreamTrack> Clone() override;
 
 		void onStarted(std::function<void()> callback) override;
 		void onEnded(std::function<void()> callback) override;
@@ -60,7 +56,9 @@ namespace crtc {
 		void onFrameDrop(std::function<void()> callback) override;
 
 		rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> GetTrack() const;
-		rtc::scoped_refptr<webrtc::MediaSourceInterface> GetSource() const;
+		webrtc::MediaSourceInterface* GetSource() const;
+
+		void ClearObserver();
 
 	private:
 		void OnChanged() override;
@@ -77,7 +75,7 @@ namespace crtc {
 
 		MediaStreamTrack::Type _kind;
 		rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> _track;
-		rtc::scoped_refptr<webrtc::MediaSourceInterface> _source;
+		//rtc::scoped_refptr<webrtc::MediaSourceInterface> _source;
 		webrtc::MediaSourceInterface::SourceState _state;
 
 		synchronized_callback<> _onstarted;

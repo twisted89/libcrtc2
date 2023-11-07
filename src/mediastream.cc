@@ -29,7 +29,7 @@
 
 using namespace crtc;
 
-std::shared_ptr<MediaStream> MediaStreamInternal::New(webrtc::MediaStreamInterface* stream) {
+std::shared_ptr<MediaStreamInternal> MediaStreamInternal::New(webrtc::MediaStreamInterface* stream) {
 	if (stream) {
 		return std::make_shared<MediaStreamInternal>(stream);
 	}
@@ -37,7 +37,7 @@ std::shared_ptr<MediaStream> MediaStreamInternal::New(webrtc::MediaStreamInterfa
 	return nullptr;
 }
 
-std::shared_ptr<MediaStream> MediaStreamInternal::New(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
+std::shared_ptr<MediaStreamInternal> MediaStreamInternal::New(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
 	if (stream.get()) {
 		return std::make_shared<MediaStreamInternal>(stream);
 	}
@@ -46,27 +46,36 @@ std::shared_ptr<MediaStream> MediaStreamInternal::New(rtc::scoped_refptr<webrtc:
 }
 
 MediaStreamInternal::MediaStreamInternal(webrtc::MediaStreamInterface* stream) :
-	_stream(stream),
-	_audio_tracks(stream->GetAudioTracks()),
-	_video_tracks(stream->GetVideoTracks())
+	_stream(stream)
 {
-	_stream->RegisterObserver(this);
+	OnChanged();
+	Async::Call([this]() { _stream->RegisterObserver(this); });
 }
 
 MediaStreamInternal::MediaStreamInternal(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) :
-	_stream(stream),
-	_audio_tracks(stream->GetAudioTracks()),
-	_video_tracks(stream->GetVideoTracks())
+	_stream(stream)
 {
-	_stream->RegisterObserver(this);
+	OnChanged();
+	Async::Call([this]() { _stream->RegisterObserver(this); });
 }
 
 MediaStreamInternal::~MediaStreamInternal() {
-	_stream->UnregisterObserver(this);
+	for (const auto& audio_track : _audio_tracks) {
+		_onremovetrack(audio_track);
+	}
+
+	for (const auto& video_track : _video_tracks) {
+		_onremovetrack(video_track);
+	}
 }
 
 String MediaStreamInternal::Id() const {
 	return String(_stream->id().c_str());
+}
+
+std::string crtc::MediaStreamInternal::IdString() const
+{
+	return _stream->id();
 }
 
 
@@ -113,15 +122,32 @@ void MediaStreamInternal::RemoveTrack(const std::shared_ptr<MediaStreamTrack>& t
 	*/
 }
 
-std::shared_ptr<MediaStreamTrack> MediaStreamInternal::GetTrackById(const String& id) const {
-	rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = _stream->FindAudioTrack(std::string(id));
+void crtc::MediaStreamInternal::onAddTrack(std::function<void(std::shared_ptr<MediaStreamTrack>)> callback)
+{
+	_onaddtrack = callback;
+	//Call for any existing tracks 
+	for (const auto& t : _audio_tracks) {
+		_onaddtrack(t);
+	}
+	for (const auto& t : _video_tracks) {
+		_onaddtrack(t);
+	}
+}
 
-	if (!track.get()) {
-		track = _stream->FindVideoTrack(std::string(id));
+void crtc::MediaStreamInternal::onRemoveTrack(std::function<void(std::shared_ptr<MediaStreamTrack>)> callback)
+{
+	_onremovetrack = callback;
+}
+
+std::shared_ptr<MediaStreamTrack> MediaStreamInternal::GetTrackById(const String& id) const {
+	for (const auto& audio_track : _audio_tracks) {
+		if (audio_track->IdString().compare(id) == 0)
+			return audio_track;
 	}
 
-	if (track.get()) {
-		return MediaStreamTrackInternal::New(track.get());
+	for (const auto& video_track : _video_tracks) {
+		if (video_track->IdString().compare(id) == 0)
+			return video_track;
 	}
 
 	return nullptr;
@@ -138,7 +164,7 @@ MediaStreamTracks MediaStreamInternal::GetAudioTracks() const {
 	auto audio_tracks(_stream->GetAudioTracks());
 
 	for (const auto& track : audio_tracks) {
-		tracks.push_back(MediaStreamTrackInternal::New(track.get()));
+		tracks.push_back(std::make_shared<MediaStreamTrackInternal>(track.get()));
 	}
 
 	return tracks;
@@ -150,7 +176,7 @@ MediaStreamTracks MediaStreamInternal::GetVideoTracks() const {
 	auto video_tracks(_stream->GetVideoTracks());
 
 	for (const auto& track : video_tracks) {
-		tracks.push_back(MediaStreamTrackInternal::New(track.get()));
+		tracks.push_back(std::make_shared<MediaStreamTrackInternal>(track.get()));
 	}
 
 	return tracks;
@@ -160,52 +186,69 @@ std::shared_ptr<MediaStream> MediaStreamInternal::Clone() {
 	return std::make_shared<MediaStreamInternal>(_stream);
 }
 
+void crtc::MediaStreamInternal::ClearObserver()
+{
+	Async::Call([this]() { _stream->UnregisterObserver(this); });
+
+	for (const auto& audio_track : _audio_tracks) {
+		audio_track->ClearObserver();
+	}
+
+	for (const auto& video_track : _video_tracks) {
+		video_track->ClearObserver();
+	}
+}
+
 void MediaStreamInternal::OnChanged() {
 	webrtc::AudioTrackVector audio_tracks = _stream->GetAudioTracks();
 	webrtc::VideoTrackVector video_tracks = _stream->GetVideoTracks();
+	std::vector<std::shared_ptr<MediaStreamTrackInternal>> new_audio_tracks;
+	std::vector<std::shared_ptr<MediaStreamTrackInternal>> new_video_tracks;
 
 	for (const auto& cached_track : _audio_tracks) {
 		auto it = std::find_if(audio_tracks.begin(), audio_tracks.end(), [cached_track](const webrtc::AudioTrackVector::value_type& new_track) {
-			return new_track->id().compare(cached_track->id()) == 0;
-			});
+			return new_track->id().compare(cached_track->IdString()) == 0;
+		});
 
 		if (it == audio_tracks.end()) {
-			OnRemoveTrack(MediaStreamTrackInternal::New(cached_track.get()));
+			_onremovetrack(cached_track);
 		}
 	}
 
 	for (const auto& new_track : audio_tracks) {
-		auto it = std::find_if(_audio_tracks.begin(), _audio_tracks.end(), [new_track](const webrtc::AudioTrackVector::value_type& cached_track) {
-			return new_track->id().compare(cached_track->id()) == 0;
+		auto it = std::find_if(_audio_tracks.begin(), _audio_tracks.end(), [new_track](const std::shared_ptr<MediaStreamTrackInternal>& cached_track) {
+			return new_track->id().compare(cached_track->IdString()) == 0;
 			});
 
 		if (it == _audio_tracks.end()) {
-			OnAddTrack(MediaStreamTrackInternal::New(new_track.get()));
+			new_audio_tracks.emplace_back(std::make_shared<MediaStreamTrackInternal>(new_track.get()));
+			_onaddtrack(new_audio_tracks.back());
 		}
 	}
 
 	for (const auto& cached_track : _video_tracks) {
 		auto it = std::find_if(video_tracks.begin(), video_tracks.end(), [cached_track](const webrtc::VideoTrackVector::value_type& new_track) {
-			return new_track->id().compare(cached_track->id()) == 0;
+			return new_track->id().compare(cached_track->IdString()) == 0;
 			});
 
 		if (it == video_tracks.end()) {
-			OnRemoveTrack(MediaStreamTrackInternal::New(cached_track.get()));
+			_onremovetrack(cached_track);
 		}
 	}
 
 	for (const auto& new_track : video_tracks) {
-		auto it = std::find_if(_video_tracks.begin(), _video_tracks.end(), [new_track](const webrtc::VideoTrackVector::value_type& cached_track) {
-			return new_track->id().compare(cached_track->id()) == 0;
+		auto it = std::find_if(_video_tracks.begin(), _video_tracks.end(), [new_track](const std::shared_ptr<MediaStreamTrackInternal>& cached_track) {
+			return new_track->id().compare(cached_track->IdString()) == 0;
 			});
 
 		if (it == _video_tracks.end()) {
-			OnAddTrack(MediaStreamTrackInternal::New(new_track.get()));
+			new_video_tracks.emplace_back(std::make_shared<MediaStreamTrackInternal>(new_track.get()));
+			_onaddtrack(new_video_tracks.back());
 		}
 	}
 
-	_audio_tracks = audio_tracks;
-	_video_tracks = video_tracks;
+	_audio_tracks = std::move(new_audio_tracks);
+	_video_tracks = std::move(new_video_tracks);
 }
 
 MediaStream::MediaStream() {

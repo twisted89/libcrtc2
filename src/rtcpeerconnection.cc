@@ -26,7 +26,8 @@
 #include "rtcpeerconnection.h"
 #include "rtcdatachannel.h"
 #include "mediastream.h"
-#include "customdecoderfactory.h"
+#include "customaudiofactory.h"
+#include "customvideofactory.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/video_codecs/video_decoder_factory.h"
@@ -35,6 +36,7 @@
 #include "api/video_codecs/video_encoder_factory.h"
 #include "api/video_codecs/video_encoder_factory_template.h"
 #include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
+#include "rtc_base/logging.h"
 
 using namespace crtc;
 
@@ -47,47 +49,39 @@ RTCPeerConnectionInternal::RTCPeerConnectionInternal() {
 	_network_thread->SetName("network", nullptr);
 
 	if (!_network_thread->Start()) {
-		//TODO
+		rtc::webrtc_logging_impl::LogCall();
 	}
 
-	_signal_thread = rtc::Thread::Create();
+	_signal_thread = rtc::Thread::CreateWithSocketServer();
 	_signal_thread->SetName("signal", nullptr);
 
 	if (!_signal_thread->Start()) {
-		//TODO
+		rtc::webrtc_logging_impl::LogCall();
 	}
 
 	_worker_thread = rtc::Thread::Create();
 	_worker_thread->SetName("worker", nullptr);
 
 	if (!_worker_thread->Start()) {
-		//TODO
+		rtc::webrtc_logging_impl::LogCall();
 	}
 
-	_audio_device = nullptr; // webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kDummyAudio, task_queue.get());
+	//auto audio_device = webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kDummyAudio, _task_queue.get());
+	auto audio_device = nullptr; // new webrtc::FakeAudioDeviceModule();
 
-	if (_audio_device && !_audio_device->Initialized()) {
-		_audio_device->Init();
-	}
-
-	/*factory = webrtc::CreatePeerConnectionFactory(
-	  network_thread.get(),
-	  worker_thread.get(),
-	  rtc::ThreadManager::Instance()->CurrentThread(),
-	  audio_device.get(),
-	  nullptr, // cricket::WebRtcVideoEncoderFactory*
-	  nullptr); // cricket::WebRtcVideoDecoderFactory*
-	  */
+	//if (audio_device && !audio_device->Initialized()) {
+	//	audio_device->Init();
+	//}
 
 	_factory = webrtc::CreatePeerConnectionFactory(
 		_network_thread.get(),
 		_worker_thread.get(),
 		_signal_thread.get(),
-		std::move(_audio_device),
+		audio_device,
 		webrtc::CreateBuiltinAudioEncoderFactory(),
-		webrtc::CreateBuiltinAudioDecoderFactory(),
+		rtc::make_ref_counted<CustomAudioFactory>(this),
 		std::make_unique<webrtc::VideoEncoderFactoryTemplate<webrtc::OpenH264EncoderTemplateAdapter>>(),
-		std::make_unique<CustomDecoderFactory>(this),
+		std::make_unique<CustomVideoFactory>(this),
 		nullptr, //rtc::scoped_refptr<AudioMixer> audio_mixer,
 		nullptr, //rtc::scoped_refptr<AudioProcessing> audio_processing,
 		nullptr, //std::unique_ptr<AudioFrameProcessor> owned_audio_frame_processor,
@@ -99,23 +93,15 @@ RTCPeerConnectionInternal::~RTCPeerConnectionInternal() {
 		_socket->Close();
 	}
 
-	if (_network_thread)
+	for (const auto& s : _streams)
 	{
-		_network_thread->Stop();
-		_network_thread.release();
+		s->ClearObserver();
 	}
-	if (_worker_thread)
-	{
-		_worker_thread->Stop();
-		_worker_thread.release();
-	}
-	if (_signal_thread)
-	{
-		_signal_thread->Stop();
-		_signal_thread.release();
-	}
-	_factory.release();
-	_audio_device.release();
+
+	//Process any remaining events before we delete
+	while (Module::DispatchEvents(false)) {}
+
+	_streams.clear();
 }
 
 std::shared_ptr<RTCDataChannel> RTCPeerConnectionInternal::CreateDataChannel(const String& label, const RTCDataChannelInit& options) {
@@ -504,21 +490,43 @@ void RTCPeerConnectionInternal::OnSignalingChange(webrtc::PeerConnectionInterfac
 }
 
 void RTCPeerConnectionInternal::OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
-	_onaddstream(MediaStreamInternal::New(stream.get()));
+	_streams.emplace_back(MediaStreamInternal::New(stream.get()));
+	_streams.back()->onAddTrack(std::bind(&RTCPeerConnectionInternal::OnMediaTrack, this, std::placeholders::_1));
+	_streams.back()->onRemoveTrack(std::bind(&RTCPeerConnectionInternal::OnRemoveMediaTrack, this, std::placeholders::_1));
+	_onaddstream(_streams.back());
 }
 
 void RTCPeerConnectionInternal::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
-	_onremovestream(MediaStreamInternal::New(stream.get()));
+	for (const auto &s : _streams)
+	{
+		if (s->IdString() == stream->id()) {
+			_onremovestream(s);
+			//_streams.erase(it);
+			break;
+		}
+	}
 }
 
 void RTCPeerConnectionInternal::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
 {
-	_onaddtrack(MediaStreamTrackInternal::New(transceiver->receiver()->track().get()));
+	//Ignore these as we're unable to control their lifecycle, use tracks from mediastream instead!
+	(void)transceiver;
+}
+
+void crtc::RTCPeerConnectionInternal::OnMediaTrack(std::shared_ptr<MediaStreamTrack> track)
+{
+	_onaddtrack(track);
 }
 
 void RTCPeerConnectionInternal::OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
 {
-	_onremovetrack(MediaStreamTrackInternal::New(receiver->track().get()));
+	//Ignore these as we're unable to control their lifecycle, use tracks from mediastream instead!
+	(void)receiver;
+}
+
+void crtc::RTCPeerConnectionInternal::OnRemoveMediaTrack(std::shared_ptr<MediaStreamTrack> track)
+{
+	_onremovetrack(track);
 }
 
 void RTCPeerConnectionInternal::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
@@ -557,6 +565,11 @@ void RTCPeerConnectionInternal::OnIceCandidate(const webrtc::IceCandidateInterfa
 	}
 }
 
+void crtc::RTCPeerConnectionInternal::OnIceCandidateError(const std::string& address, int port, const std::string& url, int error_code, const std::string& error_text)
+{
+	
+}
+
 void RTCPeerConnectionInternal::OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates) {
 	_onicecandidatesremoved();
 }
@@ -565,9 +578,14 @@ void RTCPeerConnectionInternal::OnIceConnectionReceivingChange(bool receiving) {
 	//oniceconnectionstatechange();
 }
 
-bool crtc::RTCPeerConnectionInternal::BypassDecoder()
+bool crtc::RTCPeerConnectionInternal::BypassVideoDecoder()
 {
 	return _onRawVideo;
+}
+
+bool crtc::RTCPeerConnectionInternal::BypassAudioDecoder()
+{
+	return _onRawAudio;
 }
 
 void crtc::RTCPeerConnectionInternal::onRawVideo(const webrtc::EncodedImage& input_image, int64_t render_time_ms)
@@ -576,9 +594,20 @@ void crtc::RTCPeerConnectionInternal::onRawVideo(const webrtc::EncodedImage& inp
 		_onRawVideo(input_image.data(), input_image.size(), input_image.FrameType() == webrtc::VideoFrameType::kVideoFrameKey, render_time_ms);
 }
 
+void crtc::RTCPeerConnectionInternal::onRawAudio(const uint8_t* data, size_t data_length)
+{
+	if (_onRawAudio)
+		_onRawAudio(data, data_length);
+}
+
 void crtc::RTCPeerConnectionInternal::onRawVideo(std::function<void((const unsigned char* data, size_t length, bool isKeyFrame, int64_t renderTimeMs))> callback)
 {
 	_onRawVideo = callback;
+}
+
+void crtc::RTCPeerConnectionInternal::onRawAudio(std::function<void((const unsigned char* data, size_t length))> callback)
+{
+	_onRawAudio = callback;
 }
 
 void crtc::RTCPeerConnectionInternal::onAddTrack(std::function<void(const std::shared_ptr<MediaStreamTrack>)> callback)

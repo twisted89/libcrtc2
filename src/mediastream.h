@@ -39,13 +39,16 @@ namespace crtc {
 		explicit MediaStreamInternal(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream = nullptr);
 		virtual ~MediaStreamInternal() override;
 
-		static std::shared_ptr<MediaStream> New(webrtc::MediaStreamInterface* stream);
-		static std::shared_ptr<MediaStream> New(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
+		static std::shared_ptr<MediaStreamInternal> New(webrtc::MediaStreamInterface* stream);
+		static std::shared_ptr<MediaStreamInternal> New(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
 
 		String Id() const override;
+		std::string IdString() const;
 
 		void AddTrack(const std::shared_ptr<MediaStreamTrack>& track) override;
 		void RemoveTrack(const std::shared_ptr<MediaStreamTrack>& track) override;
+		void onAddTrack(std::function<void(std::shared_ptr<MediaStreamTrack>)> callback);
+		void onRemoveTrack(std::function<void(std::shared_ptr<MediaStreamTrack>)> callback);
 
 		std::shared_ptr<MediaStreamTrack> GetTrackById(const String& id) const override;
 
@@ -56,22 +59,15 @@ namespace crtc {
 
 		std::shared_ptr<MediaStream> Clone() override;
 
+		void ClearObserver();
 		void OnChanged() override;
 
 	protected:
-		virtual void OnAddTrack(const std::shared_ptr<MediaStreamTrack>& track) {
-			_onaddtrack(track);
-		}
-
-		virtual void OnRemoveTrack(const std::shared_ptr<MediaStreamTrack>& track) {
-			_onremovetrack(track);
-		}
-
 		rtc::scoped_refptr<webrtc::MediaStreamInterface> _stream;
-		webrtc::AudioTrackVector _audio_tracks;
-		webrtc::VideoTrackVector _video_tracks;
-		synchronized_callback<const std::shared_ptr<MediaStreamTrack>&> _onaddtrack;
-		synchronized_callback<const std::shared_ptr<MediaStreamTrack>&> _onremovetrack;
+		std::vector<std::shared_ptr<MediaStreamTrackInternal>> _audio_tracks;
+		std::vector<std::shared_ptr<MediaStreamTrackInternal>> _video_tracks;
+		synchronized_callback<std::shared_ptr<MediaStreamTrack>> _onaddtrack;
+		synchronized_callback<std::shared_ptr<MediaStreamTrack>> _onremovetrack;
 	};
 }
 

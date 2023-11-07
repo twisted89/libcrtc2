@@ -31,30 +31,35 @@
 using namespace crtc;
 
 void MediaStreamTrackInternal::OnChanged() {
-	switch (_source->state()) {
-	case webrtc::MediaSourceInterface::kInitializing:
-		break;
-	case webrtc::MediaSourceInterface::kLive:
-		switch (_state) {
+	auto source = GetSource();
+	if (source)
+	{
+		switch (source->state()) {
 		case webrtc::MediaSourceInterface::kInitializing:
-			OnStarted();
 			break;
 		case webrtc::MediaSourceInterface::kLive:
+			switch (_state) {
+			case webrtc::MediaSourceInterface::kInitializing:
+				OnStarted();
+				break;
+			case webrtc::MediaSourceInterface::kLive:
+				break;
+			case webrtc::MediaSourceInterface::kEnded:
+				break;
+			case webrtc::MediaSourceInterface::kMuted:
+				OnUnMute();
+				break;
+			}
+
 			break;
 		case webrtc::MediaSourceInterface::kEnded:
+			OnEnded();
 			break;
 		case webrtc::MediaSourceInterface::kMuted:
-			OnUnMute();
+			OnMute();
 			break;
 		}
-
-		break;
-	case webrtc::MediaSourceInterface::kEnded:
-		OnEnded();
-		break;
-	case webrtc::MediaSourceInterface::kMuted:
-		OnMute();
-		break;
+		_state = source->state();
 	}
 }
 
@@ -69,54 +74,37 @@ webrtc::MediaStreamTrackInterface* MediaStreamTrackInternal::New(const std::shar
 }
 */
 
-std::shared_ptr<MediaStreamTrack> MediaStreamTrackInternal::New(webrtc::MediaStreamTrackInterface* track) {
-	if (track) {
-		MediaStreamTrack::Type kind;
-		webrtc::MediaSourceInterface* source = nullptr;
-
-		if (track->kind().compare(webrtc::MediaStreamTrackInterface::kAudioKind) == 0) {
-			auto audio = static_cast<const webrtc::AudioTrackInterface*>(track);
-			source = audio->GetSource();
-			kind = MediaStreamTrack::kAudio;
-		}
-		else {
-			auto video = static_cast<const webrtc::VideoTrackInterface*>(track);
-			source = video->GetSource();
-			kind = MediaStreamTrack::kVideo;
-		}
-
-		return std::make_shared<MediaStreamTrackInternal>(kind, track, source);
-	}
-
-	return nullptr;
-}
-
-MediaStreamTrackInternal::MediaStreamTrackInternal(MediaStreamTrack::Type kind, webrtc::MediaStreamTrackInterface* track, webrtc::MediaSourceInterface* source) :
-	_kind(kind),
-	_track(track),
-	_source(source),
-	_state(_source->state())
+MediaStreamTrackInternal::MediaStreamTrackInternal(webrtc::MediaStreamTrackInterface* track) :
+	_track(track)
 {
-	_source->RegisterObserver(this);
+	_kind = track->kind() == webrtc::MediaStreamTrackInterface::kAudioKind ? MediaStreamTrack::kAudio : MediaStreamTrack::kVideo;
 
-	if (kind == MediaStreamTrack::Type::kAudio) {
+	if (track->kind() == webrtc::MediaStreamTrackInterface::kAudioKind) {
+		_kind = MediaStreamTrack::kAudio;
 		webrtc::AudioTrackInterface* audio = static_cast<webrtc::AudioTrackInterface*>(track);
+		//Async::Call([=]() {
+			audio->GetSource()->RegisterObserver(this);
+			_state = audio->GetSource()->state();
+		//	});
 		audio->AddSink(this);
 	}
-	else if (kind == MediaStreamTrack::Type::kVideo) {
+	else {
+		_kind = MediaStreamTrack::kVideo;
 		webrtc::VideoTrackInterface* video = static_cast<webrtc::VideoTrackInterface*>(track);
+
+		//Async::Call([=]() {
+			video->GetSource()->RegisterObserver(this);
+			_state = video->GetSource()->state();
+		//});
+
 		rtc::VideoSinkWants wants;
 		video->AddOrUpdateSink(this, wants);
 		video->set_enabled(true);
+		
 	}
 }
 
-MediaStreamTrackInternal::MediaStreamTrackInternal(const std::shared_ptr<MediaStreamTrackInternal>& track) :
-	MediaStreamTrackInternal(track->_kind, track->_track.get(), track->_source.get())
-{ }
-
 MediaStreamTrackInternal::~MediaStreamTrackInternal() {
-	_source->UnregisterObserver(this);
 
 	if (_kind == MediaStreamTrack::Type::kAudio) {
 		webrtc::AudioTrackInterface* audio = static_cast<webrtc::AudioTrackInterface*>(_track.get());
@@ -169,15 +157,21 @@ bool MediaStreamTrackInternal::Enabled() const {
 }
 
 bool MediaStreamTrackInternal::Remote() const {
-	return _source->remote();
+	auto source = GetSource();
+	return source ? source->remote() : true;
 }
 
 bool MediaStreamTrackInternal::Muted() const {
-	return (_source->state() == webrtc::MediaSourceInterface::kMuted);
+	auto source = GetSource();
+	return source ? source->state() == webrtc::MediaSourceInterface::kMuted : false;
 }
 
 String MediaStreamTrackInternal::Id() const {
 	return String(_track->id().c_str());
+}
+
+std::string MediaStreamTrackInternal::IdString() const {
+	return _track->id();
 }
 
 MediaStreamTrack::Type MediaStreamTrackInternal::Kind() const {
@@ -185,15 +179,12 @@ MediaStreamTrack::Type MediaStreamTrackInternal::Kind() const {
 }
 
 MediaStreamTrack::State MediaStreamTrackInternal::ReadyState() const {
-	if (_track->state() == webrtc::MediaStreamTrackInterface::kEnded || _source->state() == webrtc::MediaSourceInterface::kEnded) {
+	auto source = GetSource();
+	if (source && (_track->state() == webrtc::MediaStreamTrackInterface::kEnded || source->state() == webrtc::MediaSourceInterface::kEnded)) {
 		return MediaStreamTrack::kEnded;
 	}
 
 	return MediaStreamTrack::kLive;
-}
-
-std::shared_ptr<MediaStreamTrack> MediaStreamTrackInternal::Clone() {
-	return std::make_shared<MediaStreamTrackInternal>(_kind, _track.get(), _source.get());
 }
 
 void crtc::MediaStreamTrackInternal::onStarted(std::function<void()> callback)
@@ -235,8 +226,21 @@ rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> MediaStreamTrackInternal::
 	return _track;
 }
 
-rtc::scoped_refptr<webrtc::MediaSourceInterface> MediaStreamTrackInternal::GetSource() const {
-	return _source;
+webrtc::MediaSourceInterface* MediaStreamTrackInternal::GetSource() const {
+	if (_kind == MediaStreamTrack::Type::kAudio) {
+		return static_cast<webrtc::AudioTrackInterface*>(_track.get())->GetSource();
+	}
+	else if (_kind == MediaStreamTrack::Type::kVideo) {
+		return static_cast<webrtc::VideoTrackInterface*>(_track.get())->GetSource();
+	}
+	return nullptr;
+}
+
+void crtc::MediaStreamTrackInternal::ClearObserver()
+{
+	auto source = GetSource();
+	if(source)
+		Async::Call([=]() { source->UnregisterObserver(this); });
 }
 
 MediaStreamTrack::MediaStreamTrack() {
