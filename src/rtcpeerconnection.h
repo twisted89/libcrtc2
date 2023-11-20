@@ -121,7 +121,7 @@ namespace crtc {
 			return Error::New("Invalid SessionDescriptionInterface", __FILE__, __LINE__);
 		}
 
-		inline static std::shared_ptr<Error> SDP2SDP(const RTCPeerConnection::RTCSessionDescription* sdp, webrtc::SessionDescriptionInterface** desc = nullptr) {
+		inline static std::shared_ptr<Error> SDP2SDP(const RTCPeerConnection::RTCSessionDescription* sdp, webrtc::SessionDescriptionInterface** desc) {
 			std::string type;
 			webrtc::SdpParseError error;
 
@@ -152,6 +152,27 @@ namespace crtc {
 			else {
 				return Error::New("Invalid SessionDescriptionInterface", __FILE__, __LINE__);
 			}
+		}
+
+		inline static std::unique_ptr<webrtc::SessionDescriptionInterface> SDP2SDP(const RTCPeerConnection::RTCSessionDescription* sdp) {
+			webrtc::SdpType type;
+			webrtc::SdpParseError error;
+
+			switch (sdp->type) {
+			case RTCPeerConnection::RTCSessionDescription::kAnswer:
+				type = webrtc::SdpType::kAnswer;
+				break;
+			case RTCPeerConnection::RTCSessionDescription::kOffer:
+				type = webrtc::SdpType::kOffer;
+				break;
+			case RTCPeerConnection::RTCSessionDescription::kPranswer:
+				type = webrtc::SdpType::kPrAnswer;
+				break;
+			case RTCPeerConnection::RTCSessionDescription::kRollback:
+				return nullptr;
+			}
+
+			return webrtc::CreateSessionDescription(type, std::string(sdp->sdp));
 		}
 
 		inline static std::shared_ptr<Error> ParseConfiguration(
@@ -247,23 +268,44 @@ namespace crtc {
 			Promise<RTCPeerConnection::RTCSessionDescription>::RejectedCallback _reject;
 		};
 
-		class SetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver {
+		class SetLocalDescriptionObserver : public webrtc::SetLocalDescriptionObserverInterface {
 		public:
-			SetSessionDescriptionObserver(const Promise<>::FullFilledCallback& resolve,
+			SetLocalDescriptionObserver(const Promise<>::FullFilledCallback& resolve,
 				const Promise<>::RejectedCallback& reject) :
 				_resolve(resolve),
 				_reject(reject)
 			{ }
 
-			~SetSessionDescriptionObserver() override { }
+			~SetLocalDescriptionObserver() override { }
 
 		private:
-			void OnSuccess() override {
-				_resolve();
+			void OnSetLocalDescriptionComplete(webrtc::RTCError error) override {
+				if(error.ok())
+					_resolve();
+				else
+					_reject(Error::New(error.message(), __FILE__, __LINE__));
 			}
 
-			void OnFailure(webrtc::RTCError error) override {
-				_reject(Error::New(error.message(), __FILE__, __LINE__));
+			Promise<>::FullFilledCallback _resolve;
+			Promise<>::RejectedCallback _reject;
+		};
+
+		class SetRemoteDescriptionObserver : public webrtc::SetRemoteDescriptionObserverInterface {
+		public:
+			SetRemoteDescriptionObserver(const Promise<>::FullFilledCallback& resolve,
+				const Promise<>::RejectedCallback& reject) :
+				_resolve(resolve),
+				_reject(reject)
+			{ }
+
+			~SetRemoteDescriptionObserver() override { }
+
+		private:
+			void OnSetRemoteDescriptionComplete(webrtc::RTCError error) override {
+				if (error.ok())
+					_resolve();
+				else
+					_reject(Error::New(error.message(), __FILE__, __LINE__));
 			}
 
 			Promise<>::FullFilledCallback _resolve;
@@ -298,6 +340,7 @@ namespace crtc {
 		std::shared_ptr<Event> _event;
 		std::vector<std::function<void()>> _pending_candidates;
 		std::vector<std::shared_ptr<MediaStreamInternal>> _streams;
+		bool _settingLocalDesc, _settingRemoteDesc;
 
 		synchronized_callback<> _onnegotiationneeded;
 		synchronized_callback<> _onsignalingstatechange;
@@ -314,7 +357,7 @@ namespace crtc {
 		synchronized_callback<const std::shared_ptr<RTCIceCandidate>> _onicecandidate;
 
 
-};
+	};
 }
 
 #endif

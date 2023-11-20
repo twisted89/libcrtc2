@@ -71,11 +71,11 @@ Thread currentThread;
 
 void Module::Init() {
     rtc::ThreadManager::Instance()->SetCurrentThread(&currentThread);
-#ifdef NDEBUG
-    rtc::LogMessage::LogToDebug(rtc::LS_ERROR);
-#else
+//#ifdef NDEBUG
+//    rtc::LogMessage::LogToDebug(rtc::LS_ERROR);
+//#else
 	rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
-#endif
+//#endif
 	rtc::InitializeSSL();
 }
 
@@ -104,10 +104,11 @@ void Module::UnregisterAsyncCallback() {
 
 void Async::Call(std::function<void()> callback, int delayMs) {
     //rtc::Thread* target = rtc::ThreadManager::Instance()->CurrentThread();
+    auto event = Event::New();
     if (delayMs > 0) {
-        currentThread.PostDelayedTask([callback]() { callback(); }, webrtc::TimeDelta::Millis(delayMs));
+        currentThread.PostDelayedTask([callback, event]() { callback(); }, webrtc::TimeDelta::Millis(delayMs));
     }
     else {
-        currentThread.PostTask([callback]() { callback(); });
+        currentThread.PostTask([callback, event]() { callback(); });
     }
 }

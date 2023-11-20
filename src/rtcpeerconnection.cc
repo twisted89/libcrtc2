@@ -43,6 +43,8 @@ using namespace crtc;
 RTCPeerConnectionInternal::RTCPeerConnectionInternal() {
 	webrtc::PeerConnectionInterface::RTCConfiguration cfg(webrtc::PeerConnectionInterface::RTCConfigurationType::kAggressive);
 
+	_settingLocalDesc = _settingRemoteDesc = false;
+
 	_task_queue = webrtc::CreateDefaultTaskQueueFactory();
 
 	_network_thread = rtc::Thread::CreateWithSocketServer();
@@ -99,7 +101,9 @@ RTCPeerConnectionInternal::~RTCPeerConnectionInternal() {
 	}
 
 	//Process any remaining events before we delete
-	while (Module::DispatchEvents(false)) {}
+	while (Module::DispatchEvents(false) || _settingRemoteDesc || _settingRemoteDesc) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
 
 	_streams.clear();
 }
@@ -203,10 +207,10 @@ void RTCPeerConnectionInternal::CreateAnswer(std::function<void(RTCPeerConnectio
 			}
 		}
 	)
-	->Then([=](RTCPeerConnection::RTCSessionDescription desc) mutable {
-		callback(&desc);
-		}
-	);
+		->Then([=](RTCPeerConnection::RTCSessionDescription desc) mutable {
+			callback(&desc);
+			}
+		);
 }
 
 void RTCPeerConnectionInternal::CreateOffer(std::function<void(RTCPeerConnection::RTCSessionDescription*)> callback, const RTCOfferOptions& options) {
@@ -232,10 +236,10 @@ void RTCPeerConnectionInternal::CreateOffer(std::function<void(RTCPeerConnection
 			}
 		}
 	)
-	->Then([=](RTCPeerConnection::RTCSessionDescription desc) mutable {
+		->Then([=](RTCPeerConnection::RTCSessionDescription desc) mutable {
 			callback(&desc);
-		}
-	);
+			}
+		);
 }
 
 /*
@@ -316,54 +320,71 @@ bool RTCPeerConnectionInternal::SetConfiguration(const RTCPeerConnection::RTCCon
 }
 
 void RTCPeerConnectionInternal::SetLocalDescription(std::shared_ptr<const RTCSessionDescription> sdp) {
-	Promise<>::New([=](
-		const Promise<>::FullFilledCallback& resolve,
-		const Promise<>::RejectedCallback& reject)
-		{
-			webrtc::SessionDescriptionInterface* desc = nullptr;
-			auto error = SDP2SDP(sdp.get(), &desc);
 
-			if (!error && _socket) {
-				rtc::scoped_refptr<SetSessionDescriptionObserver> observer = rtc::make_ref_counted<SetSessionDescriptionObserver>(resolve, reject);
-				_socket->SetLocalDescription(observer.get(), desc);
-			}
-			else {
-				reject(error);
-			}
-		})->WaitForResult();
+	if (!_settingLocalDesc)
+	{
+		_settingLocalDesc = true;
+		Promise<>::New([=](
+			const Promise<>::FullFilledCallback& resolve,
+			const Promise<>::RejectedCallback& reject)
+			{
+				auto desc = SDP2SDP(sdp.get());
+
+				if (desc && _socket) {
+					auto observer = rtc::make_ref_counted<SetLocalDescriptionObserver>(resolve, reject);
+					_socket->SetLocalDescription(std::move(desc), observer);
+				}
+				else {
+					reject(Error::New("Failed to create local description from SDP", __FILE__, __LINE__));
+				}
+			})->Finally([=]() {
+				_settingLocalDesc = false;
+			});
+	}
 }
 
 void RTCPeerConnectionInternal::SetRemoteDescription(std::shared_ptr<const RTCSessionDescription> sdp) {
-	Promise<>::New([=](
-		const Promise<>::FullFilledCallback& resolve,
-		const Promise<>::RejectedCallback& reject)
-		{
-			webrtc::SessionDescriptionInterface* desc = nullptr;
-			auto error = SDP2SDP(sdp.get(), &desc);
-
-			if (!error && _socket) {
-				Promise<>::New([=](const Promise<>::FullFilledCallback& res, const Promise<>::RejectedCallback& rej) {
-					rtc::scoped_refptr<SetSessionDescriptionObserver> observer = rtc::make_ref_counted<SetSessionDescriptionObserver>(res, rej);
-					_socket->SetRemoteDescription(observer.get(), desc);
-					})->Then([=]() {
-						if (_pending_candidates.size()) {
-							for (const auto& callback : _pending_candidates) {
-								callback();
-							}
-
-							_pending_candidates.clear();
+	if (!_settingRemoteDesc)
+	{
+		_settingRemoteDesc = true;
+		Promise<>::New([=](
+			const Promise<>::FullFilledCallback& resolve,
+			const Promise<>::RejectedCallback& reject)
+			{
+				if (_socket) {
+					Promise<>::New([=](const Promise<>::FullFilledCallback& res, const Promise<>::RejectedCallback& rej) {
+						auto desc = SDP2SDP(sdp.get());
+						if (desc)
+						{
+							auto observer = rtc::make_ref_counted<SetRemoteDescriptionObserver>(res, rej);
+							_socket->SetRemoteDescription(std::move(desc), observer);
 						}
+						else {
+							reject(Error::New("Failed to create remote description from SDP", __FILE__, __LINE__));
+						}
+						})->Then([=]()
+							{
+								if (_pending_candidates.size()) {
+									for (const auto& callback : _pending_candidates) {
+										callback();
+									}
 
-						resolve();
-						})->Catch([=](const std::shared_ptr<Error>& error) {
-							reject(error);
+									_pending_candidates.clear();
+								}
+								resolve();
+							}
+						)->Catch([=](const std::shared_ptr<Error>& error)
+							{
+								reject(error);
 							});
-
-			}
-			else {
-				reject(error);
-			}
-		})->WaitForResult();
+				}
+				else {
+					reject(Error::New("SOCKET is NULL!", __FILE__, __LINE__));
+				}
+			})->Finally([=]() {
+				_settingRemoteDesc = false;
+				});
+	}
 }
 
 void RTCPeerConnectionInternal::Close() {
@@ -497,7 +518,7 @@ void RTCPeerConnectionInternal::OnAddStream(rtc::scoped_refptr<webrtc::MediaStre
 }
 
 void RTCPeerConnectionInternal::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) {
-	for (const auto &s : _streams)
+	for (const auto& s : _streams)
 	{
 		if (s->IdString() == stream->id()) {
 			_onremovestream(s);
@@ -567,7 +588,7 @@ void RTCPeerConnectionInternal::OnIceCandidate(const webrtc::IceCandidateInterfa
 
 void crtc::RTCPeerConnectionInternal::OnIceCandidateError(const std::string& address, int port, const std::string& url, int error_code, const std::string& error_text)
 {
-	
+
 }
 
 void RTCPeerConnectionInternal::OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates) {

@@ -82,21 +82,20 @@ MediaStreamTrackInternal::MediaStreamTrackInternal(webrtc::MediaStreamTrackInter
 	if (track->kind() == webrtc::MediaStreamTrackInterface::kAudioKind) {
 		_kind = MediaStreamTrack::kAudio;
 		webrtc::AudioTrackInterface* audio = static_cast<webrtc::AudioTrackInterface*>(track);
-		//Async::Call([=]() {
-			audio->GetSource()->RegisterObserver(this);
-			_state = audio->GetSource()->state();
-		//	});
+		Async::Call([=]() {
+			track->RegisterObserver(this);
+		});
+		_state = audio->GetSource()->state();
 		audio->AddSink(this);
 	}
 	else {
 		_kind = MediaStreamTrack::kVideo;
 		webrtc::VideoTrackInterface* video = static_cast<webrtc::VideoTrackInterface*>(track);
 
-		//Async::Call([=]() {
-			video->GetSource()->RegisterObserver(this);
-			_state = video->GetSource()->state();
-		//});
-
+		Async::Call([=]() {
+			track->RegisterObserver(this);
+		});
+		_state = video->GetSource()->state();
 		rtc::VideoSinkWants wants;
 		video->AddOrUpdateSink(this, wants);
 		video->set_enabled(true);
@@ -240,7 +239,7 @@ void crtc::MediaStreamTrackInternal::ClearObserver()
 {
 	auto source = GetSource();
 	if(source)
-		Async::Call([=]() { source->UnregisterObserver(this); });
+		Async::Call([=]() { _track->UnregisterObserver(this); });
 }
 
 MediaStreamTrack::MediaStreamTrack() {
