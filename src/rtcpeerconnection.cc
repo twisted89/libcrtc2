@@ -37,6 +37,9 @@
 #include "api/video_codecs/video_encoder_factory_template.h"
 #include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
 #include "rtc_base/logging.h"
+#ifdef __ANDROID__
+#include <unistd.h>
+#endif
 
 using namespace crtc;
 
@@ -102,7 +105,11 @@ RTCPeerConnectionInternal::~RTCPeerConnectionInternal() {
 
 	//Process any remaining events before we delete
 	while (Module::DispatchEvents(false) || _settingRemoteDesc || _settingRemoteDesc) {
+#ifdef __ANDROID__
+		sleep(1);
+#else
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+#endif
 	}
 
 	_streams.clear();

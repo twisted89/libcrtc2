@@ -2,10 +2,12 @@
 
 import os
 import sys
+import re
 import subprocess
 import shutil
 import tarfile
 import platform
+import fileinput
 from io import BytesIO
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -57,12 +59,30 @@ def build_archive():
   with tarfile.open(os.path.join(dist_dir, pkg_name), "w:gz") as tar:
     tar.add(dist_include_dir, arcname='include')
     tar.add(dist_lib_dir, arcname='lib')
-
+    
+def search_text(file, searchExp):
+  with open(file, 'r') as f:
+    if searchExp in f.read():
+      return True
+    else:
+      return False
+    
+def replace_text(file, searchExp, replaceExp):
+  for line in fileinput.input(file, inplace=True, backup='.bak'):
+    if searchExp in line:
+      print(line.replace(searchExp, replaceExp))
+    else:
+      print(line, end='')
+     
 depot_tools_dir = os.path.join(third_party_dir, 'depot_tools')
-webrtc_dir = os.path.join(third_party_dir, 'webrtc')
+if (target_os == 'android'):
+  webrtc_dir = os.path.join(third_party_dir, 'webrtc_android')
+else:
+  webrtc_dir = os.path.join(third_party_dir, 'webrtc')
+
 webrtc_src_dir = os.path.join(webrtc_dir, 'src')
 webrtc_crtc_dir = os.path.join(webrtc_src_dir, 'crtc')
-webrtc_sync = os.path.join(third_party_dir, '.webrtc_sync')
+webrtc_sync = os.path.join(third_party_dir, '.webrtc_sync_' + target_os)
 
 if not os.path.exists(third_party_dir):
   os.mkdir(third_party_dir)
@@ -79,7 +99,11 @@ if not os.path.exists(webrtc_sync):
   os.chdir(webrtc_dir)
 
   if not os.path.exists(webrtc_src_dir):
-    subprocess.call([fetch_cmd, '--nohooks', '--nohistory', 'webrtc'])
+    if (target_os == 'android'):
+      subprocess.call([fetch_cmd, '--nohooks', '--nohistory', 'webrtc_android'])
+    else:
+      subprocess.call([fetch_cmd, '--nohooks', '--nohistory', 'webrtc'])
+    
   else:
     os.chdir(webrtc_src_dir)
 
@@ -104,6 +128,15 @@ if not os.path.exists(webrtc_sync):
   open(webrtc_sync, 'a').close()
   
 os.chdir(webrtc_src_dir)
+
+if (target_os == 'android'):
+  if search_text('./buildtools/third_party/libunwind/BUILD.gn', 'visibility += ["//build/config:common_deps"]') == False:
+    print('Patching libunwind visibility...')
+    replace_text('./buildtools/third_party/libunwind/BUILD.gn', 'visibility = [ "//buildtools/third_party/libc++abi" ]', 'visibility = [ "//buildtools/third_party/libc++abi" ]\n  visibility += ["//build/config:common_deps"]')
+    replace_text('./build/config/BUILD.gn', 'if (use_custom_libcxx) {', 'if (is_android) {\n    public_deps += [ "//buildtools/third_party/libunwind" ]\n  } else if (use_custom_libcxx) {')
+  else:
+    print('Libunwind visibility appears to be patched...')
+
 gn_flags = '--args=rtc_include_tests=false is_component_build=false rtc_use_h264=true ffmpeg_branding="Chrome" rtc_enable_protobuf=false treat_warnings_as_errors=false use_custom_libcxx=false'
 
 if os.environ.get('WEBRTC_DEBUG') == 'true':
