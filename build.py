@@ -130,7 +130,7 @@ def build(project, target_platform, cpu, is_debug):
     else:
       print('Libunwind visibility appears to be patched...')
 
-  gn_flags = '--args=rtc_include_tests=false is_component_build=false rtc_use_h264=true ffmpeg_branding="Chrome" rtc_enable_protobuf=false treat_warnings_as_errors=false use_custom_libcxx=false'
+  gn_flags = '--args=rtc_include_tests=false is_component_build=false rtc_use_h264=true ffmpeg_branding="Chrome" rtc_enable_protobuf=false treat_warnings_as_errors=false use_custom_libcxx=false use_rtti=true'
 
   if is_debug == True:
     gn_flags += ' is_debug=true'
