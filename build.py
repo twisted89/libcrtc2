@@ -53,13 +53,10 @@ def build_archive(dist_dir, platform, package_name):
   with tarfile.open(pkg_path, "w:gz") as tar:
     for f in dist_folders:
       tar.add(f[0], f[1])
-    tar.add(os.path.join(root_dir, 'dist', 'include'), 'include')
   print('Archive saved to ' + pkg_path)
       
-def build(target_platform, cpu, is_debug, build_examples = False):
-  dist_dir = os.path.join(root_dir, 'dist', target_platform, cpu)
-  dist_lib_dir = os.path.join(dist_dir, 'lib')
-  dist_include_dir = os.path.join(root_dir, 'dist', 'include')
+def build(target_platform, cpu, is_debug):
+  dist_dir = os.path.join(root_dir, 'lib', target_platform, cpu)
   out_dir = os.path.join(root_dir, 'out')
 
   dist_folders.append((dist_dir, target_platform + '_' + cpu))
@@ -108,8 +105,8 @@ def build(target_platform, cpu, is_debug, build_examples = False):
 
     os.chdir(webrtc_src_dir)
 
-    if os.path.exists(os.path.join(webrtc_src_dir, 'BUILD.gn')):
-      os.remove(os.path.join(webrtc_src_dir, 'BUILD.gn'))
+    #if os.path.exists(os.path.join(webrtc_src_dir, 'BUILD.gn')):
+    #  os.remove(os.path.join(webrtc_src_dir, 'BUILD.gn'))
 
     if not os.path.exists(webrtc_crtc_dir):
       os.symlink(root_dir, webrtc_crtc_dir)
@@ -149,34 +146,17 @@ def build(target_platform, cpu, is_debug, build_examples = False):
 
   os.chdir(webrtc_dir)
 
-  if build_examples == True:
-    subprocess.check_call([ninja_cmd, '-C', os.path.join(out_dir, target_platform, cpu), 'crtc-examples'])
-  else:
-    subprocess.check_call([ninja_cmd, '-C', os.path.join(out_dir, target_platform, cpu), 'crtc'])
+  subprocess.check_call([ninja_cmd, '-C', os.path.join(out_dir, target_platform, cpu), 'webrtc'])
 
   os.chdir(root_dir)
+  if os.path.exists(dist_dir):
+    shutil.rmtree(dist_dir)
   os.makedirs(dist_dir, exist_ok=True)
 
-  if os.path.exists(dist_include_dir):
-    shutil.rmtree(dist_include_dir)
-
-  os.makedirs(dist_include_dir, exist_ok=True)
-
-  if os.path.exists(dist_lib_dir):
-    shutil.rmtree(dist_lib_dir)
-    
-  os.makedirs(dist_lib_dir, exist_ok=True)
-
-  shutil.copy(os.path.join(root_dir, 'include', 'crtc.h'), dist_include_dir)
-  if target_platform == 'android':
-    shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'lib.unstripped'), 'libcrtc.so'), dist_lib_dir)
-  elif target_platform == 'linux':
-    shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu), 'libcrtc.so'), dist_lib_dir)
-  elif target_platform == 'win32':
-    shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu), 'crtc.dll'), dist_lib_dir)
-    shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu), 'crtc.dll.lib'), os.path.join(dist_lib_dir, 'crtc.lib'))
-  elif target_platform == 'darwin':
-    shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu), 'libcrtc.dylib'), dist_lib_dir)
+  if target_platform == 'win32':
+    shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'obj'), 'webrtc.lib'), os.path.join(dist_dir, 'webrtc.lib'))
+  else:
+  	shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'obj'), 'libwebrtc.a'), dist_dir)
     
 def arch_menu(platform):
   print()
@@ -195,19 +175,19 @@ def arch_menu(platform):
     build(platform, 'x64', False)
     build(platform, 'arm', False)
     build(platform, 'arm64', False)
-    build_archive(os.path.join(root_dir, 'dist'), platform, 'all')
+    #build_archive(os.path.join(root_dir, 'lib'), platform, 'all')
   elif choice == "2":
     build(platform, 'x86', False)
-    build_archive(os.path.join(root_dir, 'dist'), platform, 'x86')
+    #build_archive(os.path.join(root_dir, 'lib'), platform, 'x86')
   elif choice=="3":
     build(platform, 'x64', False)
-    build_archive(os.path.join(root_dir, 'dist'), platform, 'x64')
+    #build_archive(os.path.join(root_dir, 'lib'), platform, 'x64')
   elif choice=="4":
     build(platform, 'arm', False)
-    build_archive(os.path.join(root_dir, 'dist'), platform, 'arm')
+    #build_archive(os.path.join(root_dir, 'lib'), platform, 'arm')
   elif choice=="5":    
     build(platform, 'arm64', False)
-    build_archive(os.path.join(root_dir, 'dist'), platform, 'arm64')
+    #build_archive(os.path.join(root_dir, 'lib'), platform, 'arm64')
   else:
     arch_menu(platform)
 
