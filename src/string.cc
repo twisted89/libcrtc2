@@ -13,7 +13,13 @@ namespace crtc
 
 		Impl() : text(nullptr), length(0) { }
 
-		Impl(char const* const t) : text(strdup(t)), length(strlen(t)){}
+#ifdef  _WIN32
+		Impl(char const* const t) : text(_strdup(t)), length(strlen(t)) {}
+#else
+		Impl(char const* const t) : text(strdup(t)), length(strlen(t)) {}
+#endif //  _WIN32
+
+		
 
 		Impl(const char* t, size_t len) : text(nullptr), length(len) {
 			text = reinterpret_cast<char *>(malloc(length + 1));
