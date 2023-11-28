@@ -105,13 +105,9 @@ def build(target_platform, cpu, is_debug):
 
     os.chdir(webrtc_src_dir)
 
-    #if os.path.exists(os.path.join(webrtc_src_dir, 'BUILD.gn')):
-    #  os.remove(os.path.join(webrtc_src_dir, 'BUILD.gn'))
-
     if not os.path.exists(webrtc_crtc_dir):
       os.symlink(root_dir, webrtc_crtc_dir)
 
-    os.symlink(os.path.join(root_dir, 'root.gn'), os.path.join(webrtc_src_dir, 'BUILD.gn'))
     open(webrtc_sync, 'a').close()
     
   os.chdir(webrtc_src_dir)
