@@ -32,4 +32,5 @@
 out/
 latex/
 dist/
+lib/
 .vs/

@@ -107,10 +107,18 @@ def build(project, target_platform, cpu, is_debug):
 
     os.chdir(webrtc_src_dir)
 
+    open(webrtc_sync, 'a').close()
+    
+  if(project == 'crtc'):
     if not os.path.exists(webrtc_crtc_dir):
       os.symlink(root_dir, webrtc_crtc_dir)
-
-    open(webrtc_sync, 'a').close()
+    if not os.path.exists(os.path.join(webrtc_src_dir, 'BUILD.gn_bak')):
+      os.rename(os.path.join(webrtc_src_dir, 'BUILD.gn'), os.path.join(webrtc_src_dir, 'BUILD.gn_bak'))
+      os.symlink(os.path.join(root_dir, 'root.gn'), os.path.join(webrtc_src_dir, 'BUILD.gn'))
+  else:
+    if os.path.exists(os.path.join(webrtc_src_dir, 'BUILD.gn_bak')):
+      os.remove(os.path.join(webrtc_src_dir, 'BUILD.gn'))
+      os.rename(os.path.join(webrtc_src_dir, 'BUILD.gn_bak'), os.path.join(webrtc_src_dir, 'BUILD.gn'))
     
   os.chdir(webrtc_src_dir)
 
@@ -172,44 +180,49 @@ def build(project, target_platform, cpu, is_debug):
     os.makedirs(dist_dir, exist_ok=True)
     
     if target_platform == 'win32':
-    shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'obj'), 'webrtc.lib'), os.path.join(dist_dir, 'webrtc.lib'))
+      shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'obj'), 'webrtc.lib'), os.path.join(dist_dir, 'webrtc.lib'))
     else:
-    shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'obj'), 'libwebrtc.a'), dist_dir)
+      shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'obj'), 'libwebrtc.a'), dist_dir)
     
 def arch_menu(project, platform):
   print()
 
   choice = input("""
-        1: All
-        2: x86
-        3: x64
-        4: arm
-        5: arm64
-
-        Select an architecture """)
+    1: All
+    2: x86
+    3: x64
+    4: arm
+    5: arm64
+    
+    Select an architecture """)
 
   if choice == "1":
     build(project, platform, 'x86', False)
     build(project, platform, 'x64', False)
     build(project, platform, 'arm', False)
     build(project, platform, 'arm64', False)
-    #build_archive(os.path.join(root_dir, 'lib'), platform, 'all')
+    if(project == 'crtc'):
+      build_archive(os.path.join(root_dir, 'lib'), platform, 'all')
   elif choice == "2":
     build(project, platform, 'x86', False)
-    #build_archive(os.path.join(root_dir, 'lib'), platform, 'x86')
+    if(project == 'crtc'):
+      build_archive(os.path.join(root_dir, 'lib'), platform, 'x86')
   elif choice=="3":
     build(project, platform, 'x64', False)
-    #build_archive(os.path.join(root_dir, 'lib'), platform, 'x64')
+    if(project == 'crtc'):
+      build_archive(os.path.join(root_dir, 'lib'), platform, 'x64')
   elif choice=="4":
     build(project, platform, 'arm', False)
-    #build_archive(os.path.join(root_dir, 'lib'), platform, 'arm')
+    if(project == 'crtc'):
+      build_archive(os.path.join(root_dir, 'lib'), platform, 'arm')
   elif choice=="5":    
     build(project, platform, 'arm64', False)
-    #build_archive(os.path.join(root_dir, 'lib'), platform, 'arm64')
+    if(project == 'crtc'):
+      build_archive(os.path.join(root_dir, 'lib'), platform, 'arm64')
   else:
     arch_menu(project, platform)
     
-def platform_menu(project)
+def platform_menu(project):
   choice = input("""
     1: Windows
     2: Linux
@@ -233,11 +246,11 @@ def main():
   print("************CRTC2**************")
   print()
   
-    choice = input("""
-        1: CRTC2 Shared Library
-        2: WebRTC Static Library
+  choice = input("""
+    1: CRTC2 Shared Library
+    2: WebRTC Static Library
 
-        Select an project to build """)
+    Select an project to build """)
 
             
   if choice == "1":
