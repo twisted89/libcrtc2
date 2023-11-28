@@ -57,6 +57,7 @@ add_library(crtc SHARED
 		endif()
 	elseif(ANDROID)
 		target_compile_definitions(crtc PRIVATE WEBRTC_POSIX)
+		target_link_libraries(crtc PRIVATE android log)
 		if(${CMAKE_ANDROID_ARCH_ABI} STREQUAL "armeabi-v7a")
 			target_link_directories(crtc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/lib/android/arm")
 		elseif(${CMAKE_ANDROID_ARCH_ABI} STREQUAL "arm64-v8a")
