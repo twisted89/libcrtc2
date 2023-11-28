@@ -1,18 +1,11 @@
-# WebRTC C++ library
-WebRTC (Web Real-Time Communication) is a collection of communications protocols and application programming interfaces that enable real-time communication over peer-to-peer connections. This allows web browsers to not only request resources from backend servers, but also real-time information from browsers of other users.
+# CRTC2 C++ WebRTC library
+Based on original work by vmolsa (https://github.com/vmolsa/libcrtc) this library aims to provide a c++ interface to WebRTC for use in external projects.
 
-This enables applications such as video conferencing, file transfer, chat, or desktop sharing without the need of either internal or external plugins.
-
-WebRTC is being standardized by the World Wide Web Consortium (W3C) and the Internet Engineering Task Force (IETF). The reference implementation is released as free software under the terms of a BSD license.
-
-WebRTC uses Real-Time Protocol to transfer audio and video.
+## Building
+Use the python script build.py for build options
 
 **See also**
  - https://webrtc.org/
-
-## API Documentation
-
-[libcrtc](https://rawgit.com/vmolsa/libcrtc/master/doc/index.html)
 
 ## Licence & copyright
 
