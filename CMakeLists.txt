@@ -9,7 +9,6 @@ set(ENABLE_ASAN OFF)
 project(libcrtc)
 
 set(WEBRTC_SRC ${CMAKE_CURRENT_SOURCE_DIR}/3dparty/webrtc/src)
-message(${WEBRTC_SRC})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -77,5 +76,3 @@ add_library(crtc SHARED
 	endif()
 
 	target_link_libraries(crtc PRIVATE webrtc)
-
-target_compile_features(crtc PRIVATE cxx_std_17)
