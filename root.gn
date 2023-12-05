@@ -385,6 +385,7 @@ config("common_config") {
       "crtc/src/customaudiodecoder.cc",
       "crtc/src/customaudiofactory.cc",
       "crtc/src/customvideofactory.cc",
+      "crtc/src/fakeaudiodevice.cc",
       "crtc/src/module.cc",
       "crtc/src/rtcpeerconnection.cc",
       "crtc/src/rtcdatachannel.cc",

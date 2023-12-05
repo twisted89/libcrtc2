@@ -31,6 +31,7 @@ add_library(crtc SHARED
 	src/customvideofactory.cc src/customvideofactory.h
 	src/error.cc src/error.h
 	src/event.cc src/event.h
+	src/fakeaudiodevice.cc src/fakeaudiodevice.h
 	#src/imagebuffer.cc src/imagebuffer.h
 	#src/mediadevices.cc src/mediadevices.h
 	src/mediastream.cc src/mediastream.h

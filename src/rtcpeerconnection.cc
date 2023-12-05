@@ -37,6 +37,7 @@
 #include "api/video_codecs/video_encoder_factory_template.h"
 #include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
 #include "rtc_base/logging.h"
+#include "fakeaudiodevice.h"
 #ifdef __ANDROID__
 #include <unistd.h>
 #endif
@@ -72,7 +73,7 @@ RTCPeerConnectionInternal::RTCPeerConnectionInternal() {
 	}
 
 	//auto audio_device = webrtc::AudioDeviceModule::Create(webrtc::AudioDeviceModule::kDummyAudio, _task_queue.get());
-	auto audio_device = nullptr; // new webrtc::FakeAudioDeviceModule();
+	auto audio_device = FakeAudioDeviceModule::Create(); // new webrtc::FakeAudioDeviceModule();
 
 	//if (audio_device && !audio_device->Initialized()) {
 	//	audio_device->Init();
