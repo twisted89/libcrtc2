@@ -184,11 +184,11 @@ namespace crtc {
 
     int32_t FakeAudioDeviceModule::StartPlayout()
     {
-            if (!_playIsInitialized) {
-                return -1;
-            }
+        if (!_playIsInitialized) {
+            return -1;
+        }
         {
-                webrtc::MutexLock lock(&_lock);
+            webrtc::MutexLock lock(&_lock);
             _playing = true;
         }
         return 0;
@@ -211,11 +211,11 @@ namespace crtc {
 
     int32_t FakeAudioDeviceModule::StartRecording()
     {
-            if (!_recIsInitialized) {
-                return -1;
-            }
+        if (!_recIsInitialized) {
+            return -1;
+        }
         {
-                webrtc::MutexLock lock(&_lock);
+            webrtc::MutexLock lock(&_lock);
             _recording = true;
         }
         return 0;
