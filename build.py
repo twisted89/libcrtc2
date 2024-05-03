@@ -166,7 +166,10 @@ def build(project, target_platform, cpu, is_debug):
     os.makedirs(dist_lib_dir, exist_ok=True)
     shutil.copy(os.path.join(root_dir, 'include', 'crtc.h'), dist_include_dir)
     if target_platform == 'android':
-      shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'lib.unstripped'), 'libcrtc.so'), dist_lib_dir)
+      if sys.platform.startswith('linux')
+        shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'lib.unstripped'), 'libcrtc.so'), dist_lib_dir)
+      else:
+        print('Android builds only supported on linux')
     elif target_platform == 'linux':
       shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu), 'libcrtc.so'), dist_lib_dir)
     elif target_platform == 'win32':
