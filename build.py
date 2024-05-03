@@ -166,10 +166,7 @@ def build(project, target_platform, cpu, is_debug):
     os.makedirs(dist_lib_dir, exist_ok=True)
     shutil.copy(os.path.join(root_dir, 'include', 'crtc.h'), dist_include_dir)
     if target_platform == 'android':
-      if sys.platform.startswith('linux')
-        shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'lib.unstripped'), 'libcrtc.so'), dist_lib_dir)
-      else:
-        print('Android builds only supported on linux')
+      shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu, 'lib.unstripped'), 'libcrtc.so'), dist_lib_dir)
     elif target_platform == 'linux':
       shutil.copy(os.path.join(os.path.join(out_dir, target_platform, cpu), 'libcrtc.so'), dist_lib_dir)
     elif target_platform == 'win32':
@@ -239,7 +236,10 @@ def platform_menu(project):
   elif choice == "2":
       arch_menu(project, 'linux')
   elif choice=="3":
-      arch_menu(project, 'android')
+      sys.platform.startswith('linux')
+        arch_menu(project, 'android')
+      else:
+        print('Android builds only supported on linux')
   elif choice=="4":
       arch_menu(project, 'darwin')
   else:
