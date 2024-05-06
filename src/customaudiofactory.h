@@ -33,6 +33,7 @@ namespace crtc {
 			absl::optional<webrtc::AudioCodecPairId> codec_pair_id) override;
 	private:
 		RTCPeerConnectionInternal* _pc;
+        rtc::scoped_refptr<AudioDecoderFactory> _audioFactory;
 	};
 
 }

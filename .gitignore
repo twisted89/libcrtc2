@@ -34,3 +34,5 @@ latex/
 dist/
 lib/
 .vs/
+
+3dparty

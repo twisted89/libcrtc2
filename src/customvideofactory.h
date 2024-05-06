@@ -1,6 +1,7 @@
 #ifndef CRTC_CUSTOMVIDEOFACTORY_H
 #define CRTC_CUSTOMVIDEOFACTORY_H
 
+#include "api/environment/environment_factory.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include <modules/video_coding/codecs/h264/include/h264.h>
@@ -17,49 +18,57 @@ namespace crtc {
 		std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override;
 
 		// Creates a VideoDecoder for the specified format.
-		std::unique_ptr<webrtc::VideoDecoder> CreateVideoDecoder(const webrtc::SdpVideoFormat& format) override;
+		std::unique_ptr<webrtc::VideoDecoder> Create(const webrtc::Environment& env, const webrtc::SdpVideoFormat& format) override;
 
 	private:
-		bool IsFormatInList(
-			const webrtc::SdpVideoFormat& format,
-			rtc::ArrayView<const webrtc::SdpVideoFormat> supported_formats) const {
-			return absl::c_any_of(
-				supported_formats, [&](const webrtc::SdpVideoFormat& supported_format) {
-					return supported_format.name == format.name &&
-						supported_format.parameters == format.parameters;
-				});
-		}
+        bool IsFormatInList(
+                const webrtc::SdpVideoFormat& format,
+                rtc::ArrayView<const webrtc::SdpVideoFormat> supported_formats) const {
+            return absl::c_any_of(
+                    supported_formats, [&](const webrtc::SdpVideoFormat& supported_format) {
+                        return supported_format.name == format.name &&
+                               supported_format.parameters == format.parameters;
+                    });
+        }
 
-		template <typename V, typename... Vs>
-		std::unique_ptr<webrtc::VideoDecoder> CreateVideoDecoderInternal(
-			const webrtc::SdpVideoFormat& format) {
-			if (IsFormatInList(format, V::SupportedFormats())) {
-				return V::CreateDecoder(format);
-			}
+        template <typename V, typename... Vs>
+        std::vector<webrtc::SdpVideoFormat> GetSupportedFormatsInternal() const {
+            auto supported_formats = V::SupportedFormats();
 
-			if constexpr (sizeof...(Vs) > 0) {
-				return CreateVideoDecoderInternal<Vs...>(format);
-			}
+            if constexpr (sizeof...(Vs) > 0) {
+                // Supported formats may overlap between implementations, so duplicates
+                // should be filtered out.
+                for (const auto& other_format : GetSupportedFormatsInternal<Vs...>()) {
+                    if (!IsFormatInList(other_format, supported_formats)) {
+                        supported_formats.push_back(other_format);
+                    }
+                }
+            }
 
-			return nullptr;
-		}
+            return supported_formats;
+        }
 
-		template <typename V, typename... Vs>
-		std::vector<webrtc::SdpVideoFormat> GetSupportedFormatsInternal() const {
-			auto supported_formats = V::SupportedFormats();
+        template <typename V, typename... Vs>
+        std::unique_ptr<webrtc::VideoDecoder> CreateVideoDecoderInternal(
+                const webrtc::Environment& env,
+                const webrtc::SdpVideoFormat& format) {
+            if (IsFormatInList(format, V::SupportedFormats())) {
+                if constexpr (std::is_invocable_r_v<std::unique_ptr<webrtc::VideoDecoder>,
+                              decltype(V::CreateDecoder),
+                const webrtc::Environment&,
+                const webrtc::SdpVideoFormat&>) {
+                    return V::CreateDecoder(env, format);
+                } else {
+                    return V::CreateDecoder(format);
+                }
+            }
 
-			if constexpr (sizeof...(Vs) > 0) {
-				// Supported formats may overlap between implementations, so duplicates
-				// should be filtered out.
-				for (const auto& other_format : GetSupportedFormatsInternal<Vs...>()) {
-					if (!IsFormatInList(other_format, supported_formats)) {
-						supported_formats.push_back(other_format);
-					}
-				}
-			}
+            if constexpr (sizeof...(Vs) > 0) {
+                return CreateVideoDecoderInternal<Vs...>(env, format);
+            }
 
-			return supported_formats;
-		}
+            return nullptr;
+        }
 
 		RTCPeerConnectionInternal* _pc;
 	};

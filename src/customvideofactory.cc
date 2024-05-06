@@ -29,7 +29,7 @@ namespace crtc {
 			webrtc::Dav1dDecoderTemplateAdapter>();
 	}
 
-	std::unique_ptr<webrtc::VideoDecoder> CustomVideoFactory::CreateVideoDecoder(const webrtc::SdpVideoFormat& format)
+	std::unique_ptr<webrtc::VideoDecoder> CustomVideoFactory::Create(const webrtc::Environment& env, const webrtc::SdpVideoFormat& format)
 	{
 		if (_pc->BypassVideoDecoder())
 			return std::make_unique<CustomVideoDecoder>(_pc);
@@ -38,7 +38,7 @@ namespace crtc {
 			webrtc::LibvpxVp8DecoderTemplateAdapter,
 			webrtc::LibvpxVp9DecoderTemplateAdapter,
 			webrtc::OpenH264DecoderTemplateAdapter,
-			webrtc::Dav1dDecoderTemplateAdapter>(format);
+			webrtc::Dav1dDecoderTemplateAdapter>(env, format);
 		
 	}
 }
