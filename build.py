@@ -236,7 +236,10 @@ def platform_menu(project):
   elif choice == "2":
       arch_menu(project, 'linux')
   elif choice=="3":
-      arch_menu(project, 'android')
+      if sys.platform.startswith('linux'):
+        arch_menu(project, 'android')
+      else:
+        print('Android builds only supported on linux')
   elif choice=="4":
       arch_menu(project, 'darwin')
   else:
