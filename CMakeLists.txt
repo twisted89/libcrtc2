@@ -60,7 +60,7 @@ add_library(crtc SHARED
 			target_link_directories(crtc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/lib/win32/x86")
 		endif()
 	elseif(ANDROID)
-		target_compile_definitions(crtc PRIVATE WEBRTC_POSIX _LIBCPP_PSTL_CPU_BACKEND_THREAD _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE)
+		target_compile_definitions(crtc PRIVATE WEBRTC_USE_H264 WEBRTC_POSIX _LIBCPP_PSTL_CPU_BACKEND_THREAD _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE)
 		target_link_libraries(crtc PRIVATE android log)
 		if(${CMAKE_ANDROID_ARCH_ABI} STREQUAL "armeabi-v7a")
 			target_link_directories(crtc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/lib/android/arm")
