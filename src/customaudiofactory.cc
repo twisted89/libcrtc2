@@ -49,7 +49,7 @@ namespace crtc {
 		absl::optional<webrtc::AudioCodecPairId> codec_pair_id)
 	{
 		if (_pc->BypassAudioDecoder())
-			return std::make_unique<CustomAudioDecoder>(_pc);
+			return std::make_unique<CustomAudioDecoder>(_pc, _audioFactory, format, codec_pair_id);
 
 		return _audioFactory->MakeAudioDecoder(format, codec_pair_id);
 	}
