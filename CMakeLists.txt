@@ -8,6 +8,11 @@ set(ENABLE_ASAN OFF)
 
 project(libcrtc)
 
+if((CMAKE_BUILD_TYPE MATCHES Release) OR (CMAKE_BUILD_TYPE MATCHES RelWithDebInfo))
+	set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+	set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+endif()
+
 if(ANDROID)
 	set(WEBRTC_SRC ${CMAKE_CURRENT_SOURCE_DIR}/3dparty/webrtc_android/src)
 else()
