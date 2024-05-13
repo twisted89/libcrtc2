@@ -35,10 +35,11 @@ namespace crtc {
 					}
 
 					self->_completed = true;
-
 					self->_onfinally.clear();
 					self->_onreject.clear();
 					self->_onresolve.clear();
+
+                    self->_cnd.notify_all();
 				}
 			});
 
@@ -57,6 +58,7 @@ namespace crtc {
 					self->_onfinally.clear();
 					self->_onreject.clear();
 					self->_onresolve.clear();
+                    self->_cnd.notify_all();
 				}
 			});
 
